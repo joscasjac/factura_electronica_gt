@@ -1,7 +1,9 @@
 """Estado FEL on Sales Invoice: one stored value per invoice, for the list column and filter.
 
-Pendiente (submitted, not certified) · Certificada · Contingencia · Anulada · Por anular
-(cancelled in ERPNext but still valid in SAT: someone has to annul it). Empty on drafts
+Pendiente (submitted, not certified) · Certificada · Demo (validated in Demo mode: never sent,
+no fiscal value) · Contingencia · Anulada · Por anular (cancelled in ERPNext but still valid in
+SAT: someone has to annul it). "Documento SAT" keeps "serie · número" readable next to the
+run-together name certification gives the invoice. Empty on drafts
 and on invoices whose series is not FEL. Kept current from the invoice's own events and from
 Envio FEL (certification, annulment); a patch backfills existing invoices.
 """
@@ -11,7 +13,8 @@ from frappe import _
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 FIELD = "fel_estado"
-OPTIONS = "\nPendiente\nCertificada\nContingencia\nAnulada\nPor anular"
+OPTIONS = "\nPendiente\nCertificada\nDemo\nContingencia\nAnulada\nPor anular"
+DOC_FIELD = "fel_documento"
 
 
 def ensure_field():
@@ -30,7 +33,19 @@ def ensure_field():
 					"in_list_view": 1,
 					"in_standard_filter": 1,
 					"print_hide": 1,
-				}
+				},
+				{
+					"fieldname": DOC_FIELD,
+					"fieldtype": "Data",
+					"label": "SAT document",
+					"insert_after": FIELD,
+					"read_only": 1,
+					"no_copy": 1,
+					"allow_on_submit": 1,
+					"in_list_view": 1,
+					"print_hide": 1,
+					"description": "Serie · número assigned by SAT.",
+				},
 			]
 		},
 		update=True,
@@ -53,10 +68,12 @@ def compute(invoice) -> str:
 	if not row or row.docstatus == 0:
 		return ""
 	if row.numero_autorizacion_fel:
-		status = frappe.db.get_value("Envio FEL", row.numero_autorizacion_fel, "status")
-		if status == "Cancelled":
+		envio = frappe.db.get_value("Envio FEL", row.numero_autorizacion_fel, ["status", "configuracion"], as_dict=True) or frappe._dict()
+		if envio.status == "Cancelled":
 			return "Anulada"
-		return "Por anular" if row.docstatus == 2 else "Certificada"
+		if row.docstatus == 2:
+			return "Por anular"
+		return "Demo" if _demo(envio.configuracion) else "Certificada"
 	if row.docstatus == 2:
 		return ""
 	tipo, _export = document_type(row.name)
@@ -65,12 +82,30 @@ def compute(invoice) -> str:
 	return "Contingencia" if row.get("fel_contingencia") else "Pendiente"
 
 
+def _demo(config):
+	return bool(config) and frappe.get_meta("Configuracion Factura Electronica").has_field("modo") and frappe.db.get_value(
+		"Configuracion Factura Electronica", config, "modo"
+	) == "Demo"
+
+
+def document_label(invoice) -> str:
+	uuid = frappe.db.get_value("Sales Invoice", invoice, "numero_autorizacion_fel")
+	if not uuid:
+		return ""
+	envio = frappe.db.get_value("Envio FEL", uuid, ["serie", "numero"], as_dict=True)
+	return f"{envio.serie} · {envio.numero}" if envio and envio.serie else ""
+
+
 def refresh(invoice):
-	if not invoice or not frappe.db.exists("Sales Invoice", invoice) or not frappe.get_meta("Sales Invoice").has_field(FIELD):
+	meta = frappe.get_meta("Sales Invoice")
+	if not invoice or not frappe.db.exists("Sales Invoice", invoice) or not meta.has_field(FIELD):
 		return
-	value = compute(invoice)
-	if frappe.db.get_value("Sales Invoice", invoice, FIELD) != value:
-		frappe.db.set_value("Sales Invoice", invoice, FIELD, value, update_modified=False)
+	values = {FIELD: compute(invoice)}
+	if meta.has_field(DOC_FIELD):
+		values[DOC_FIELD] = document_label(invoice)
+	current = frappe.db.get_value("Sales Invoice", invoice, list(values), as_dict=True)
+	if any((current.get(k) or "") != (v or "") for k, v in values.items()):
+		frappe.db.set_value("Sales Invoice", invoice, values, update_modified=False)
 
 
 def on_invoice_event(doc, method=None):

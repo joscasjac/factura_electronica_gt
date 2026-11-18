@@ -42,7 +42,7 @@ frappe.query_reports["GT Purchase Ledger"] = {
       options: "Supplier",
       default: "",
       reqd: 0,
-      depends_on: 'eval:doc.options=="Detailed"',
+      depends_on: 'eval:doc.options=="Detallado"',
     },
     {
       fieldname: "from_date",
@@ -78,7 +78,7 @@ frappe.query_reports["GT Purchase Ledger"] = {
       label: __("Group?"),
       default: "",
       fieldtype: "Check",
-      depends_on: 'eval:doc.options=="Detailed"',
+      depends_on: 'eval:doc.options=="Detallado"',
     },
     {
       fieldname: "address",
@@ -91,9 +91,9 @@ frappe.query_reports["GT Purchase Ledger"] = {
     {
       fieldname: "options",
       label: __("Options"),
-      default: "Detailed",
+      default: "Detallado",
       fieldtype: "Select",
-      options: ["Detailed", "Weekly", "Monthly", "Quarterly"],
+      options: ["Detallado", "Semanal", "Mensual", "Trimestral"],
     },
   ],
   onload: function (report) {
@@ -124,7 +124,7 @@ frappe.query_reports["GT Purchase Ledger"] = {
               method: "factura_electronica.factura_electronica.report.gt_sales_ledger.gt_sales_ledger.generate_report_files",
               args: {
                 data: report.data,
-                col_idx: report.filters[9].value, // El rango
+                col_idx: frappe.query_report.get_filter_value("options"), // El rango
                 filters: JSON.stringify(filters),
                 report_name: report.report_name,
                 f_type: values.format,

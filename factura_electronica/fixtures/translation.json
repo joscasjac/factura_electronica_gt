@@ -253,7 +253,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Cancell Sales Invoice FEL",
-  "translated_text": "Cancelar Factura Venta Electronica FEL"
+  "translated_text": "Cancelar Factura Venta Electrónica FEL"
  },
  {
   "context": null,
@@ -349,7 +349,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "DUCA Number",
-  "translated_text": "Numero de DUCA"
+  "translated_text": "Número de DUCA"
  },
  {
   "context": null,
@@ -717,7 +717,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Generate Credit Note",
-  "translated_text": "Generar Nota de Credito Electronica"
+  "translated_text": "Generar Nota de Credito Electrónica"
  },
  {
   "context": null,
@@ -733,7 +733,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Generate Electronic Debit Note",
-  "translated_text": "Generar Nota de Debito Electronica"
+  "translated_text": "Generar Nota de Debito Electrónica"
  },
  {
   "context": null,
@@ -973,7 +973,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Invoice Number",
-  "translated_text": "Numero de Factura"
+  "translated_text": "Número de factura"
  },
  {
   "context": null,
@@ -1421,7 +1421,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Purchase Ledger Page Number",
-  "translated_text": "Numero de Folio Libro de Compras"
+  "translated_text": "Número de Folio Libro de Compras"
  },
  {
   "context": null,
@@ -1549,7 +1549,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Retention Confirmation Number",
-  "translated_text": "Constancia de Retencion"
+  "translated_text": "Constancia de retención"
  },
  {
   "context": null,
@@ -1581,7 +1581,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Sales Ledger Page Number",
-  "translated_text": "Numero de Folio Libro de Ventas"
+  "translated_text": "Número de Folio Libro de Ventas"
  },
  {
   "context": null,
@@ -2285,7 +2285,7 @@
   "parentfield": null,
   "parenttype": null,
   "source_text": "Access Number FEL",
-  "translated_text": "Numero de acceso FEL"
+  "translated_text": "Número de acceso FEL"
  },
  {
   "context": null,
@@ -2301,7 +2301,7 @@
   "parentfield": null,
   "parenttype": null,
   "source_text": "FEL: for exchange invoice reference only",
-  "translated_text": "FEL: solo para referencia de facturas cambiarias"
+  "translated_text": "Solo para referencia de facturas cambiarias"
  },
  {
   "context": null,
@@ -2349,7 +2349,7 @@
   "parentfield": null,
   "parenttype": null,
   "source_text": "FEL: Check if the item applies to discount to show in electronic invoice generation.",
-  "translated_text": "FEL: Marque si el artículo aplica a descuento para mostrarlo en la generación de la factura electrónica."
+  "translated_text": "Marque si el artículo aplica a descuento para mostrarlo en la generación de la factura electrónica."
  },
  {
   "context": null,
@@ -2941,7 +2941,7 @@
   "parentfield": null,
   "parenttype": null,
   "source_text": "FACELEC: If the company is owned by a single person, enter the owner's name.",
-  "translated_text": "FACELEC: Si la empresa es propiedad de una sola persona, introduzca el nombre del propietario"
+  "translated_text": "Si la empresa es propiedad de una sola persona, introduzca el nombre del propietario"
  },
  {
   "context": null,

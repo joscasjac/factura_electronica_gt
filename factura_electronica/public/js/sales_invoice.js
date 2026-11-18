@@ -1008,8 +1008,8 @@ function fel_headline(frm, ctx) {
     text = __("Cancelada en ERPNext pero vigente en SAT: anúlela con FEL › Anular en SAT.");
     color = "red";
   } else if (ctx.certified) {
-    text = __("{0} certificada · Serie {1} Número {2} · {3}", [
-      esc(ctx.label),
+    const head = demo ? __("{0} validada en modo Demo (sin certificar)", [esc(ctx.label)]) : __("{0} certificada", [esc(ctx.label)]);
+    text = head + " · " + __("Serie {0} Número {1} · {2}", [
       esc(ctx.serie || ""),
       esc(ctx.numero || ""),
       esc(fel_datetime(ctx.fecha)),
@@ -1028,6 +1028,7 @@ function fel_headline(frm, ctx) {
     text = ctx.certify_on_submit
       ? __("Al validar se certifica en SAT como {0}.", [`<strong>${esc(ctx.label)}</strong>`])
       : __("Se emitirá como {0}. Después de validar, certifíquela con «Certificar en SAT».", [`<strong>${esc(ctx.label)}</strong>`]);
+    text += " " + __("SAT asigna la serie y el número al certificar; {0} queda como número interno.", [esc(frm.doc.name)]);
     color = "blue";
   } else {
     return;
@@ -1057,6 +1058,8 @@ function fel_actions(frm, ctx) {
   }
   if (frm.doc.docstatus === 1 && certified && !frm.doc.is_return && !frm.doc.is_debit_note) {
     // Both notes live here; the credit note is ERPNext's return (its NCRE series is chosen on save).
+    // ERPNext's own Crear › Devolución / Nota de crédito would be a second way in: drop it.
+    frm.remove_custom_button(__("Return / Credit Note"), __("Create"));
     frm.add_custom_button(__("Nota de crédito"), () => fel_make_note(frm, "credit"), FEL_GROUP);
     frm.add_custom_button(__("Nota de débito"), () => fel_make_note(frm, "debit"), FEL_GROUP);
     if (frm.doc.outstanding_amount > 0) {
@@ -1124,8 +1127,12 @@ function fel_submit_dialog(frm, ctx) {
     const rows = [
       [__("Documento"), esc(ctx.label)],
       [__("Receptor"), esc(ctx.receptor || "") + " · NIT " + esc(ctx.nit || "CF")],
-      [__("Total"), esc(fel_money(ctx))],
+      [__("Fecha de emisión"), esc(frappe.datetime.str_to_user(frm.doc.posting_date))],
     ];
+    if (ctx.tipo === "FCAM" || ctx.tipo === "FCAP") {
+      rows.push([__("Vencimiento"), esc(frappe.datetime.str_to_user(frm.doc.due_date))]);
+    }
+    rows.push([__("Total"), esc(fel_money(ctx))]);
     const fields = [
       {
         fieldtype: "HTML",
@@ -1241,7 +1248,11 @@ function fel_without_confirm(fn) {
   const restore = () => {
     if (frappe.confirm === bypass) frappe.confirm = original;
   };
-  const bypass = function (message, yes) {
+  // only Frappe's own "Permanently Submit / Cancel <name>?" is skipped; any other confirm
+  // that opens meanwhile is shown as usual
+  const expected = (cur_frm && cur_frm.docname) ? [__("Permanently Submit {0}?", [cur_frm.docname]), __("Permanently Cancel {0}?", [cur_frm.docname])] : [];
+  const bypass = function (message, yes, ...rest) {
+    if (!expected.includes(message)) return original.call(frappe, message, yes, ...rest);
     frappe.confirm = original;
     yes && yes();
   };

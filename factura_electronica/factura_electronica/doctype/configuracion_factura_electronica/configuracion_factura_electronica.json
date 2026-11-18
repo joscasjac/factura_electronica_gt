@@ -100,7 +100,7 @@
    "fieldname": "generacion_factura",
    "fieldtype": "Select",
    "hidden": 1,
-   "label": "Modalidad Generacion Factura Electronica",
+   "label": "Modalidad Generacion Factura Electrónica",
    "options": "MANUAL",
    "read_only": 1,
    "allow_on_submit": 1
@@ -121,7 +121,7 @@
    "fieldname": "descargar_pdf_factura_electronica",
    "fieldtype": "Select",
    "hidden": 1,
-   "label": "Descargar PDF Factura Electronica",
+   "label": "Descargar PDF Factura Electrónica",
    "options": "DESACTIVAR",
    "read_only": 1,
    "allow_on_submit": 1
@@ -297,25 +297,27 @@
    "allow_on_submit": 1
   },
   {
-   "collapsible_depends_on": "eval: doc.regimen === 'FEL';",
+   "collapsible_depends_on": "eval:doc.modo!='Demo'",
    "depends_on": "eval:doc.regimen === 'FEL';",
    "fieldname": "datos_fel_section",
    "fieldtype": "Section Break",
-   "label": "Credenciales del certificador"
+   "label": "Credenciales del certificador",
+   "collapsible": 1,
+   "description": "Las entrega el certificador al afiliarse. En modo Demo no se usan."
   },
   {
-   "description": "FEL",
+   "description": "Llave de firma del certificador (INFILE: «Token Signer»). La entrega el certificador; no se usa en modo Demo.",
    "fieldname": "llave_pfx",
    "fieldtype": "Data",
    "label": "Llave PFX para firmar (Token Signer)",
    "allow_on_submit": 1
   },
   {
-   "description": "FEL",
+   "description": "Código de la configuración que asigna el certificador, si aplica.",
    "fieldname": "codigo",
    "fieldtype": "Data",
    "hidden": 1,
-   "label": "Codigo",
+   "label": "Código",
    "allow_on_submit": 1
   },
   {
@@ -323,10 +325,10 @@
    "fieldtype": "Column Break"
   },
   {
-   "description": "FEL",
+   "description": "Usuario del web service del certificador (INFILE: «Prefijo»). No se usa en modo Demo.",
    "fieldname": "alias",
    "fieldtype": "Data",
-   "label": "Alias (Prefijo WS)",
+   "label": "Alias (prefijo WS)",
    "allow_on_submit": 1
   },
   {
@@ -342,35 +344,35 @@
    "allow_on_submit": 1
   },
   {
-   "description": "FEL",
+   "description": "Dirección del servicio que certifica los DTE. Vacío: la del certificador para el modo elegido.",
    "fieldname": "url_dte",
    "fieldtype": "Data",
    "label": "URL DTE",
    "allow_on_submit": 1
   },
   {
-   "description": "FEL",
+   "description": "Dirección del servicio de firma. Vacío: la del certificador para el modo elegido.",
    "fieldname": "url_firma",
    "fieldtype": "Data",
-   "label": "URL Firma",
+   "label": "URL firma",
    "allow_on_submit": 1
   },
   {
    "default": "N",
-   "description": "FEL: Por default se usa N",
+   "description": "Valor que se envía en las peticiones de firma; por defecto N.",
    "fieldname": "es_anulacion",
    "fieldtype": "Data",
-   "label": "Es Anulacion",
+   "label": "Es anulación",
    "read_only": 1,
    "hidden": 1,
    "allow_on_submit": 1
   },
   {
-   "description": "FEL",
+   "description": "Frase de SAT que llevan los documentos de esta configuración (por ejemplo, 1: sujeto a pagos trimestrales ISR).",
    "fieldname": "tipo_frase",
    "fieldtype": "Select",
    "hidden": 1,
-   "label": "Tipo Frase",
+   "label": "Tipo de frase",
    "options": "\n1: Frase de retención del ISR\n2: Frase de retención del IVA\n3: Frase de no genera derecho a crédito fiscal del IVA\n4: Frase de exento o no afecto al IVA",
    "allow_on_submit": 1
   },
@@ -419,10 +421,10 @@
    "allow_on_submit": 1
   },
   {
-   "description": "FEL",
+   "description": "Llave del web service del certificador (INFILE: «Llave»). No se usa en modo Demo.",
    "fieldname": "llave_ws",
    "fieldtype": "Data",
-   "label": "Llave Web Service",
+   "label": "Llave web service",
    "allow_on_submit": 1
   },
   {
@@ -469,7 +471,7 @@
    "label": "Certificador predeterminado"
   },
   {
-   "description": "FEL: De acuerdo al Régimen que\ntenga registrado el contribuyente, se refiere a que puede ser General/Exento o Pequeño Contribuyente.",
+   "description": "De acuerdo al Régimen que\ntenga registrado el contribuyente, se refiere a que puede ser General/Exento o Pequeño Contribuyente.",
    "fieldname": "afiliacion_iva",
    "fieldtype": "Select",
    "label": "Afiliación IVA",
@@ -477,11 +479,11 @@
    "allow_on_submit": 1
   },
   {
-   "description": "FEL",
+   "description": "Escenario de la frase, según el catálogo de SAT.",
    "fieldname": "codigo_escenario",
    "fieldtype": "Int",
    "hidden": 1,
-   "label": "Codigo Escenario",
+   "label": "Código de escenario",
    "allow_on_submit": 1
   },
   {
@@ -536,7 +538,7 @@
    "allow_on_submit": 1
   },
   {
-   "description": "FEL: URL para anular documentos",
+   "description": "Dirección del servicio para anular documentos. Vacío: la del certificador para el modo elegido.",
    "fieldname": "url_de_anulacion",
    "fieldtype": "Data",
    "label": "URL de anulación",

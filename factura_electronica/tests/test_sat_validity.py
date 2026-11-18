@@ -62,7 +62,7 @@ class TestSatValidity(IntegrationTestCase):
 		from factura_electronica.fel.status import compute
 
 		envio = self.certified()
-		self.assertEqual(compute(envio.serie_para_factura), "Certificada")
+		self.assertEqual(compute(envio.serie_para_factura), "Demo")  # Demo mode: never sent to SAT
 		frappe.db.set_value("Sales Invoice", envio.serie_para_factura, "docstatus", 2)
 		self.assertEqual(compute(envio.serie_para_factura), "Por anular")
 		frappe.db.set_value("Envio FEL", envio.name, "status", "Cancelled")

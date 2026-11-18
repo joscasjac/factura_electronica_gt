@@ -664,8 +664,8 @@
       text = __("Cancelada en ERPNext pero vigente en SAT: an\xFAlela con FEL \u203A Anular en SAT.");
       color = "red";
     } else if (ctx.certified) {
-      text = __("{0} certificada \xB7 Serie {1} N\xFAmero {2} \xB7 {3}", [
-        esc(ctx.label),
+      const head = demo ? __("{0} validada en modo Demo (sin certificar)", [esc(ctx.label)]) : __("{0} certificada", [esc(ctx.label)]);
+      text = head + " \xB7 " + __("Serie {0} N\xFAmero {1} \xB7 {2}", [
         esc(ctx.serie || ""),
         esc(ctx.numero || ""),
         esc(fel_datetime(ctx.fecha))
@@ -683,6 +683,7 @@
       color = "orange";
     } else if (frm.doc.docstatus === 0) {
       text = ctx.certify_on_submit ? __("Al validar se certifica en SAT como {0}.", [`<strong>${esc(ctx.label)}</strong>`]) : __("Se emitir\xE1 como {0}. Despu\xE9s de validar, certif\xEDquela con \xABCertificar en SAT\xBB.", [`<strong>${esc(ctx.label)}</strong>`]);
+      text += " " + __("SAT asigna la serie y el n\xFAmero al certificar; {0} queda como n\xFAmero interno.", [esc(frm.doc.name)]);
       color = "blue";
     } else {
       return;
@@ -705,6 +706,7 @@
       frm.add_custom_button(__("PDF del documento"), () => open_fel_pdf(ctx.uuid, frm), FEL_GROUP);
     }
     if (frm.doc.docstatus === 1 && certified && !frm.doc.is_return && !frm.doc.is_debit_note) {
+      frm.remove_custom_button(__("Return / Credit Note"), __("Create"));
       frm.add_custom_button(__("Nota de cr\xE9dito"), () => fel_make_note(frm, "credit"), FEL_GROUP);
       frm.add_custom_button(__("Nota de d\xE9bito"), () => fel_make_note(frm, "debit"), FEL_GROUP);
       if (frm.doc.outstanding_amount > 0) {
@@ -761,8 +763,12 @@
       const rows = [
         [__("Documento"), esc(ctx.label)],
         [__("Receptor"), esc(ctx.receptor || "") + " \xB7 NIT " + esc(ctx.nit || "CF")],
-        [__("Total"), esc(fel_money(ctx))]
+        [__("Fecha de emisi\xF3n"), esc(frappe.datetime.str_to_user(frm.doc.posting_date))]
       ];
+      if (ctx.tipo === "FCAM" || ctx.tipo === "FCAP") {
+        rows.push([__("Vencimiento"), esc(frappe.datetime.str_to_user(frm.doc.due_date))]);
+      }
+      rows.push([__("Total"), esc(fel_money(ctx))]);
       const fields = [
         {
           fieldtype: "HTML",
@@ -865,7 +871,10 @@
       if (frappe.confirm === bypass)
         frappe.confirm = original;
     };
-    const bypass = function(message, yes) {
+    const expected = cur_frm && cur_frm.docname ? [__("Permanently Submit {0}?", [cur_frm.docname]), __("Permanently Cancel {0}?", [cur_frm.docname])] : [];
+    const bypass = function(message, yes, ...rest) {
+      if (!expected.includes(message))
+        return original.call(frappe, message, yes, ...rest);
       frappe.confirm = original;
       yes && yes();
     };
@@ -1863,29 +1872,6 @@
     }
   });
 
-  // ../../../../../../../Quotes/guatemala-l10n/factura_electronica/factura_electronica/public/js/sales_invoice_actions.js
-  frappe.listview_settings["Sales Invoice"] = frappe.listview_settings["Sales Invoice"] || {};
-  var previous_sales_invoice_onload = frappe.listview_settings["Sales Invoice"].onload;
-  frappe.listview_settings["Sales Invoice"].onload = function(listview) {
-    if (typeof previous_sales_invoice_onload === "function") {
-      previous_sales_invoice_onload.call(this, listview);
-    }
-    listview.page.add_action_item(__("Create GT Electronic Invoice Batch"), function() {
-      const checked = listview.get_checked_items() || [];
-      const selected = checked.map(function(row) {
-        const name = typeof row === "string" ? row : row.name;
-        return { invoice: name };
-      });
-      frappe.call({
-        method: "factura_electronica.api_erp.batch_generator_api",
-        freeze: true,
-        args: {
-          invoices: JSON.stringify(selected)
-        }
-      });
-    });
-  };
-
   // ../../../../../../../Quotes/guatemala-l10n/factura_electronica/factura_electronica/public/js/report_defaults.js
   frappe.provide("frappe.query_reports");
   (function() {
@@ -1929,4 +1915,4 @@
     };
   })();
 })();
-//# sourceMappingURL=factura_electronica.bundle.7ATKKSYA.js.map
+//# sourceMappingURL=factura_electronica.bundle.GMJYDB7P.js.map

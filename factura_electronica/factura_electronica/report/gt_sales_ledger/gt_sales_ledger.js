@@ -35,7 +35,7 @@ frappe.query_reports["GT Sales Ledger"] = {
       options: "Customer",
       default: "",
       reqd: 0,
-      depends_on: 'eval:doc.options=="No Subtotal"',
+      depends_on: 'eval:doc.options=="Sin subtotales"',
     },
     {
       fieldname: "from_date",
@@ -72,7 +72,7 @@ frappe.query_reports["GT Sales Ledger"] = {
     //   label: __("Group?"),
     //   default: "",
     //   fieldtype: "Check",
-    //   depends_on: 'eval:doc.options=="No Subtotal"',
+    //   depends_on: 'eval:doc.options=="Sin subtotales"',
     // },
     {
       fieldtype: "Break",
@@ -80,16 +80,16 @@ frappe.query_reports["GT Sales Ledger"] = {
     {
       fieldname: "options",
       label: __("Options"),
-      default: "No Subtotal",
+      default: "Sin subtotales",
       fieldtype: "Select",
-      options: ["No Subtotal", "Weekly", "Monthly", "Quarterly"],
+      options: ["Sin subtotales", "Semanal", "Mensual", "Trimestral"],
     },
   ],
   onload: function (report) {
     // what the book leaves out, said once under the filters instead of as a read-only filter
     report.page.wrapper
       .find(".page-form")
-      .after(`<p class="text-muted small" style="margin: 4px 15px 0">${__("No incluye facturas con artículos sin configurar como bien o servicio, ni combustibles.")}</p>`);
+      .after(`<p class="text-muted small" style="margin: 4px 15px 0">${__("No incluye facturas con artículos sin clasificar como bien, servicio o combustible.")}</p>`);
     if (!frappe.query_report.get_filter_value("company")) {
       frappe.query_report.set_filter_value("company", frappe.defaults.get_user_default("Company"));
     }

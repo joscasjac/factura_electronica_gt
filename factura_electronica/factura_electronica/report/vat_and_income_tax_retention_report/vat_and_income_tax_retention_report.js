@@ -56,11 +56,11 @@ frappe.query_reports["VAT and Income Tax Retention Report"] = {
             fieldtype: "Link",
             options: "Language",
         },
-        {
-            fieldname: "group",
-            label: __("Group?"),
-            default: "",
-            fieldtype: "Check",
-        },
-    ]
+    ],
+    onload: function () {
+        const company = frappe.query_report.get_filter_value("company");
+        if (company) {
+            frappe.db.get_value("Company", company, "tax_id").then((r) => frappe.query_report.set_filter_value("nit", (r.message || {}).tax_id || ""));
+        }
+    },
 };

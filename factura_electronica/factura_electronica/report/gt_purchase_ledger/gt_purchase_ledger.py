@@ -22,6 +22,10 @@ MONTHS = ("January", "February", "March", "April", "May", "June", "July", "Augus
 QUARTERS = ("Q1 Jan - Feb - Mar", "Q2 Abr - May - Jun", "Q3 Jul - Aug - Sep", "Q4 Oct - Nov - Dec",)
 
 
+
+# "Opciones" shows Spanish values; the code keeps its English keys
+OPTION_KEYS = {"Sin subtotales": "No Subtotal", "Detallado": "Detailed", "Semanal": "Weekly", "Mensual": "Monthly", "Trimestral": "Quarterly"}
+
 def execute(filters=None):
     """
     Funcion principal de reporte, cada modificacion en el front end ejecuta esto
@@ -39,6 +43,7 @@ def execute(filters=None):
         if not filters:
             return columns, []
         filters = frappe._dict(filters)
+        filters.options = OPTION_KEYS.get(filters.options, filters.options)
         # the company filter may be defaulted without its on_change running in the browser
         if filters.company and not filters.company_currency:
             filters.company_currency = frappe.get_cached_value("Company", filters.company, "default_currency")

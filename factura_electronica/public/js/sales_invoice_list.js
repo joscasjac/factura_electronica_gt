@@ -4,10 +4,10 @@
   const settings = (frappe.listview_settings["Sales Invoice"] = frappe.listview_settings["Sales Invoice"] || {});
   settings.add_fields = [...(settings.add_fields || []), "fel_estado"];
   // colours chosen apart from ERPNext's own status pills (orange "No pagado", red "Cancelado")
-  const colors = { Pendiente: "purple", Certificada: "green", Contingencia: "yellow", Anulada: "gray", "Por anular": "red" };
+  const colors = { Pendiente: "purple", Certificada: "green", Demo: "yellow", Contingencia: "orange", Anulada: "gray", "Por anular": "red" };
   settings.formatters = Object.assign({}, settings.formatters, {
     fel_estado(value) {
-      if (!value) return "";
+      if (!value) return `<span class="text-muted">—</span>`;
       return `<span class="indicator-pill ${colors[value] || "gray"} filterable ellipsis" data-filter="fel_estado,=,${frappe.utils.escape_html(value)}"><span class="ellipsis">${__(value)}</span></span>`;
     },
   });
@@ -19,7 +19,7 @@
       listview.filter_area.clear(false).then(() => listview.filter_area.add([["Sales Invoice", "fel_estado", "in", ["Pendiente", "Contingencia", "Por anular"]]]));
     });
     if (!frappe.model.can_submit("Sales Invoice")) return;
-    listview.page.add_action_item(__("Certificar en SAT"), () => {
+    const certify = () => {
       const names = listview.get_checked_items().filter((d) => d.docstatus === 1 && ["Pendiente", "Contingencia"].includes(d.fel_estado)).map((d) => d.name);
       if (!names.length) {
         frappe.msgprint(__("Seleccione facturas validadas pendientes o en contingencia."));
@@ -45,6 +45,15 @@
             listview.refresh();
           })
       );
-    });
+    };
+    listview.page.add_action_item(__("Certificar en SAT"), certify);
+    // also as a visible primary button while the selection holds invoices to certify
+    const button = listview.page.add_inner_button(__("Certificar seleccionadas"), certify);
+    button.addClass("btn-primary").hide();
+    const toggle = () => {
+      const any = listview.get_checked_items().some((d) => d.docstatus === 1 && ["Pendiente", "Contingencia"].includes(d.fel_estado));
+      button.toggle(any);
+    };
+    listview.$result.on("change", "input.list-row-checkbox, input.list-check-all", () => setTimeout(toggle, 0));
   };
 })();
