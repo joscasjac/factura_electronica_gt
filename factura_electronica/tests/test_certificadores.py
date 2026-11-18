@@ -75,6 +75,16 @@ from factura_electronica.utils.fel_config import (  # noqa: E402
 register_adapter(InfileAdapter)
 
 
+def _fake_db(sql):
+    """A stand-in for frappe.db. patch.object on the frappe.db proxy can leave a mocked
+    sql behind on a real site (rows come back as tuples for every later test)."""
+    db = MagicMock()
+    db.table_exists.return_value = True
+    db.exists.return_value = False
+    db.sql.return_value = sql
+    return db
+
+
 class _Config(object):
     def __init__(self, name, company, is_default, docstatus=1):
         self.name = name
@@ -100,9 +110,10 @@ class TestOfficialCatalog(unittest.TestCase):
             self.assertTrue(row.get("nit"))
 
     def test_seed_skips_a_nit_that_already_exists(self):
-        with patch.object(frappe.db, "table_exists", return_value=True), patch.object(
-            frappe.db, "exists", return_value=False
-        ), patch.object(frappe.db, "sql", return_value=[("YA-EXISTE",)]), patch(
+        with patch(
+            "factura_electronica.patches.backfill_certificador_infile.frappe.db",
+            _fake_db(sql=[("YA-EXISTE",)]),
+        ), patch(
             "factura_electronica.patches.backfill_certificador_infile.frappe.get_doc"
         ) as get_doc:
             result = seed_official_certificadores()
@@ -112,9 +123,10 @@ class TestOfficialCatalog(unittest.TestCase):
 
     def test_seed_inserts_missing_certifiers_by_name(self):
         doc = MagicMock()
-        with patch.object(frappe.db, "table_exists", return_value=True), patch.object(
-            frappe.db, "exists", return_value=False
-        ), patch.object(frappe.db, "sql", return_value=()), patch(
+        with patch(
+            "factura_electronica.patches.backfill_certificador_infile.frappe.db",
+            _fake_db(sql=()),
+        ), patch(
             "factura_electronica.patches.backfill_certificador_infile.frappe.get_doc",
             return_value=doc,
         ):
