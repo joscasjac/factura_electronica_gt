@@ -12,6 +12,7 @@ from frappe import _
 from frappe.utils import flt, get_site_name, now
 from frappe.utils.file_manager import save_file
 
+from factura_electronica.factura_electronica.report.gt_sales_ledger.queries import excluded_from_book
 from factura_electronica.factura_electronica.report.gt_sales_ledger.queries import (sales_invoices, sales_invoices_monthly,
                                                                                     sales_invoices_quarterly,
                                                                                     sales_invoices_weekly)
@@ -37,6 +38,12 @@ def execute(filters=None):
 
         if not filters:
             return columns, []
+        filters = frappe._dict(filters)
+        # the company filter may be defaulted without its on_change running in the browser
+        if filters.company and not filters.company_currency:
+            filters.company_currency = frappe.get_cached_value("Company", filters.company, "default_currency")
+        if filters.company and not filters.nit:
+            filters.nit = frappe.get_cached_value("Company", filters.company, "tax_id")
 
         # Conversion fechas filtro a objetos date para realizar validaciones
         start_d = datetime.datetime.strptime(filters.from_date, "%Y-%m-%d")  # en formato date
@@ -88,7 +95,7 @@ def execute(filters=None):
             # with open("res-gt-sales-ledger.json", 'w') as f:
             #     f.write(json.dumps(data, indent=2, default=str))
 
-            return columns, data
+            return columns, data, book_message(filters)
 
         else:
             return [], []
@@ -99,6 +106,53 @@ def execute(filters=None):
             # raise_exception=True
         )
         return [], []
+
+
+def book_message(filters):
+    """Above the grid: which submitted invoices the book leaves out, with links to them."""
+    uncertified, annulled = excluded_from_book(filters)
+    parts = [_("Solo incluye documentos certificados y vigentes en SAT, aunque se hayan cancelado en ERPNext.")]
+    if uncertified:
+        parts.append(
+            _("{0} factura(s) validada(s) sin certificar no se incluyen: {1}.").format(
+                len(uncertified), '<a href="/app/sales-invoice?fel_estado=Pendiente">' + _("ver pendientes") + "</a>"
+            )
+        )
+    if annulled:
+        parts.append(
+            _("{0} factura(s) anulada(s) en SAT no se incluyen aunque sigan validadas en ERPNext: {1}.").format(
+                len(annulled), '<a href="/app/sales-invoice?fel_estado=Anulada&docstatus=1">' + _("revisarlas") + "</a>"
+            )
+        )
+    return " ".join(parts)
+
+
+def fel_series_types(company):
+    """{naming_series: SAT type label} from the company's FEL series configuration."""
+    labels = {"FACT": "Factura", "FCAM": "Factura Cambiaria", "FPEQ": "Factura Pequeño Contribuyente",
+              "FCAP": "Factura Cambiaria Pequeño Contribuyente", "FESP": "Factura Especial", "NCRE": "Nota de Crédito",
+              "NDEB": "Nota de Débito", "NABN": "Nota de Abono", "RECI": "Recibo", "RDON": "Recibo por Donación"}
+    out = {}
+    configs = frappe.get_all("Configuracion Factura Electronica", filters={"company": company, "docstatus": 1}, pluck="name")
+    for row in frappe.get_all("Configuracion Series FEL", filters={"parent": ("in", configs or [""])}, fields=["serie", "tipo_documento", "es_exportacion"]):
+        if row.serie and row.tipo_documento:
+            label = labels.get(row.tipo_documento, row.tipo_documento)
+            out[row.serie] = label + (" de Exportación" if row.es_exportacion else "")
+    return out
+
+
+def fel_identifiers(invoice_names):
+    """{invoice: {serie, numero, interno}} from Envio FEL and the original document number."""
+    names = [n for n in set(invoice_names) if n]
+    if not names:
+        return {}
+    out = {}
+    for row in frappe.get_all("Envio FEL", filters={"serie_para_factura": ("in", names)}, fields=["serie_para_factura", "serie", "numero"]):
+        out.setdefault(row.serie_para_factura, {}).update(serie=row.serie or "", numero=row.numero or "")
+    if frappe.get_meta("Sales Invoice").has_field("serie_original_del_documento"):
+        for row in frappe.get_all("Sales Invoice", filters={"name": ("in", names)}, fields=["name", "serie_original_del_documento"]):
+            out.setdefault(row.name, {})["interno"] = row.serie_original_del_documento or ""
+    return out
 
 
 def get_columns():
@@ -124,6 +178,24 @@ def get_columns():
             "fieldname": "type_doc",
             "fieldtype": "Data",
             "width": 250
+        },
+        {
+            "label": _("Serie FEL"),
+            "fieldname": "serie_fel",
+            "fieldtype": "Data",
+            "width": 110
+        },
+        {
+            "label": _("Número FEL"),
+            "fieldname": "numero_fel",
+            "fieldtype": "Data",
+            "width": 120
+        },
+        {
+            "label": _("Número interno"),
+            "fieldname": "numero_interno",
+            "fieldtype": "Data",
+            "width": 140
         },
         {
             "label": _("Num Doc."),
@@ -186,6 +258,20 @@ def get_columns():
             "fieldtype": "Currency",
             "options": "currency",
             "width": 125
+        },
+        {
+            "label": _("Fuel Sales"),
+            "fieldname": "net_fuel",
+            "fieldtype": "Currency",
+            "options": "currency",
+            "width": 150
+        },
+        {
+            "label": _("Fuel IVA"),
+            "fieldname": "fuel_iva",
+            "fieldtype": "Currency",
+            "options": "currency",
+            "width": 150
         },
         {
             "label": _("Total"),
@@ -408,6 +494,16 @@ def process_data_db(filters, data_db):
 
         # Crea una columna con las referencias de pagos (si existen)
         df_inv['accounting_document'] = df_inv['num_doc'].apply(lambda x: get_payment_ref(x))
+
+        # SAT identifiers next to the ERPNext name, so the contador can match rows to SAT
+        fel_ids = fel_identifiers(df_inv['num_doc'].tolist())
+        df_inv['serie_fel'] = df_inv['num_doc'].apply(lambda x: fel_ids.get(x, {}).get('serie', ''))
+        df_inv['numero_fel'] = df_inv['num_doc'].apply(lambda x: fel_ids.get(x, {}).get('numero', ''))
+        df_inv['numero_interno'] = df_inv['num_doc'].apply(lambda x: fel_ids.get(x, {}).get('interno', ''))
+        # SAT document type instead of the ERPNext naming series; one spelling of consumidor final
+        series_types = fel_series_types(filters.company)
+        df_inv['type_doc'] = df_inv['type_doc'].apply(lambda x: series_types.get(x, x))
+        df_inv['tax_id'] = df_inv['tax_id'].apply(lambda x: 'CF' if str(x or 'CF').replace('/', '').upper() == 'CF' else x)
 
         return calculate_total(df_inv, columns, filters, 'customer')
 

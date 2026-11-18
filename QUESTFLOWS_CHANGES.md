@@ -76,6 +76,9 @@ Verified on Frappe 16.34 / ERPNext 16.35 / HRMS 16.19 with the integration tests
   after submit, under a name certification had already changed).
 
 ## Fixes
+- **Printed certification and annulment dates were a month off**: `_readable_datetime` passed
+  Frappe's `dd-mm-yyyy` to Babel's `format_datetime`, where `mm` means minutes (10:12 on 18 Nov
+  printed as 18-12). Now `formatdate()` plus HH:MM; test in `test_fel_print.py`.
 - `api.get_special_tax` returned False for items with no Item Default row for the company,
   so the FEL calculation crashed on `.get()` for those items (found by CI on a clean bench).
 - After-save FEL calculation ran on submitted invoices too (HTTP 417 after every submit).

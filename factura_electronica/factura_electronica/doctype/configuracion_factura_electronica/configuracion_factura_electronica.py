@@ -46,6 +46,17 @@ class ConfiguracionFacturaElectronica(Document):
         if self.docstatus == 1:
             ensure_single_active_configuration(self.company, self.certificador, self.name)
             ensure_single_default_for_company(self)
+        self._warn_document_switches()
+
+    def _warn_document_switches(self):
+        """A series row for a document type whose switch is off would never be used."""
+        if self.meta.has_field("factura_cambiaria_fel") and not self.factura_cambiaria_fel:
+            if any(r.tipo_documento in ("FCAM", "FCAP") for r in self.get("series_fel") or []):
+                frappe.msgprint(
+                    _("Hay series de Factura Cambiaria pero el documento Factura cambiaria está desactivado: actívelo o quite esas series."),
+                    indicator="orange",
+                    alert=True,
+                )
 # es-GT: Se hace whitelist o abre permiso para permitir llamados Asincronicos desde el navegador del usuario
 # en-US: Whitelisting the function to permit Asyncrhonous calls from the user's web browser
 # es-GT: Esta funcion obtiene el contenido del campo "Naming Series" configurada por el usuario para "Sale Invoice". (Las series configuradas por el usuario para Facturas de Venta)

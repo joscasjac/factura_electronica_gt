@@ -985,12 +985,12 @@ function fel_money(ctx) {
 
 function fel_datetime(value) {
   if (!value) return "";
-  // "2026-11-18T08:21:55-06:00" -> user's date format and HH:mm
-  const text = String(value).replace("T", " ").slice(0, 16);
-  return frappe.datetime.str_to_user(text);
+  // "2026-11-18T08:21:55-06:00" -> "18-11-2026 08:21" (user's date format, no seconds)
+  const text = String(value).replace("T", " ");
+  return `${frappe.datetime.str_to_user(text.slice(0, 10))} ${text.slice(11, 16)}`.trim();
 }
 
-/** Status line in the form headline. */
+/** Status line in the form headline. Fiscal status is permanent: no close button. */
 function fel_headline(frm, ctx) {
   frm.dashboard.clear_headline();
   if (!ctx || !ctx.fel) return;
@@ -998,8 +998,12 @@ function fel_headline(frm, ctx) {
   const demo = ctx.mode === "Demo";
   let text, color;
   if (ctx.anulada) {
-    text = __("{0} anulada en SAT.", [esc(ctx.label)]);
-    color = "gray";
+    text = demo ? __("{0} anulada (modo Demo)", [esc(ctx.label)]) : __("{0} anulada en SAT", [esc(ctx.label)]);
+    if (ctx.fecha_anulacion) text += " · " + esc(fel_datetime(ctx.fecha_anulacion));
+    if (ctx.motivo_anulacion) text += " · " + __("motivo: {0}", [esc(ctx.motivo_anulacion)]);
+    text += ". " + __("Para emitirla de nuevo use Rectificar: crea una copia que se certifica como documento nuevo.");
+    if (demo) text += `<div class="fel-demo-note"><strong>${__("Modo Demo")}</strong>: ${__("ni la factura ni su anulación se enviaron a SAT.")}</div>`;
+    color = "red";
   } else if (ctx.cancelled) {
     text = __("Cancelada en ERPNext pero vigente en SAT: anúlela con FEL › Anular en SAT.");
     color = "red";
@@ -1020,14 +1024,24 @@ function fel_headline(frm, ctx) {
   } else if (frm.doc.docstatus === 1) {
     text = __("{0} pendiente de certificar en SAT.", [esc(ctx.label)]);
     color = "orange";
+  } else if (frm.doc.docstatus === 0) {
+    text = ctx.certify_on_submit
+      ? __("Al validar se certifica en SAT como {0}.", [`<strong>${esc(ctx.label)}</strong>`])
+      : __("Se emitirá como {0}. Después de validar, certifíquela con «Certificar en SAT».", [`<strong>${esc(ctx.label)}</strong>`]);
+    color = "blue";
   } else {
-    return; // drafts: the submit dialog explains what will happen
+    return;
   }
   if (demo && !ctx.anulada) {
-    text += " " + __("Modo Demo: no se envió a SAT y no tiene validez fiscal.");
+    text +=
+      `<div class="fel-demo-note"><strong>${__("Modo Demo")}</strong>: ` +
+      (frm.doc.docstatus === 0
+        ? __("se valida con los esquemas de SAT pero no se envía; no tiene validez fiscal.")
+        : __("no se envió a SAT y no tiene validez fiscal.")) +
+      "</div>";
     color = color === "green" ? "orange" : color;
   }
-  frm.dashboard.set_headline_alert(text, color);
+  frm.dashboard.set_headline_alert(text, color, true);
 }
 
 /** Primary action + "FEL" menu for the document's state. */
@@ -1042,7 +1056,8 @@ function fel_actions(frm, ctx) {
     frm.add_custom_button(__("PDF del documento"), () => open_fel_pdf(ctx.uuid, frm), FEL_GROUP);
   }
   if (frm.doc.docstatus === 1 && certified && !frm.doc.is_return && !frm.doc.is_debit_note) {
-    // Credit notes: ERPNext's own Crear › Devolución / Nota de crédito (its NCRE series is chosen on save).
+    // Both notes live here; the credit note is ERPNext's return (its NCRE series is chosen on save).
+    frm.add_custom_button(__("Nota de crédito"), () => fel_make_note(frm, "credit"), FEL_GROUP);
     frm.add_custom_button(__("Nota de débito"), () => fel_make_note(frm, "debit"), FEL_GROUP);
     if (frm.doc.outstanding_amount > 0) {
       frm.add_custom_button(__("Cobro con retención ISR / IVA"), () => btn_journal_entry_retention_dialog(frm), FEL_GROUP);
@@ -1071,10 +1086,15 @@ function fel_after_certify(frm, result) {
     }
     return;
   }
+  const hint = result.contingency
+    ? __("El certificador no respondió. La factura queda en contingencia y se reintenta cada hora; no hace falta hacer nada más.")
+    : __("La factura quedó validada en ERPNext pero sin certificar. Corrija lo que indica SAT (receptor, NIT, artículos o impuestos) y vuelva a usar «Certificar en SAT».");
   frappe.msgprint({
     title: result.contingency ? __("Factura en contingencia") : __("No se pudo certificar"),
     indicator: result.contingency ? "orange" : "red",
-    message: frappe.utils.escape_html(result.message || ""),
+    message:
+      `<p>${hint}</p>` +
+      (result.message ? `<p class="text-muted small">${__("Respuesta de SAT o del certificador")}: ${frappe.utils.escape_html(result.message)}</p>` : ""),
   });
   frm.reload_doc();
 }
@@ -1115,9 +1135,9 @@ function fel_submit_dialog(frm, ctx) {
           rows.map((r) => `<tr><th style="width:30%">${r[0]}</th><td>${r[1]}</td></tr>`).join("") +
           `</table>` +
           (ctx.mode === "Demo"
-            ? `<p class="text-warning">${__(
+            ? `<div class="alert alert-warning" style="margin:0">${__(
                 "Modo Demo: se valida contra los esquemas de SAT pero no se envía; no tiene validez fiscal."
-              )}</p>`
+              )}</div>`
             : `<p class="text-muted">${__(
                 "Al validar se envía a SAT. Solo se puede revertir anulándola en SAT."
               )}</p>`),
@@ -1137,7 +1157,7 @@ function fel_submit_dialog(frm, ctx) {
     const d = new frappe.ui.Dialog({
       title: ctx.mode === "Demo" ? __("Validar (modo Demo)") : __("Validar y certificar en SAT"),
       fields: fields,
-      primary_action_label: __("Validar y certificar"),
+      primary_action_label: ctx.mode === "Demo" ? __("Validar (Demo)") : __("Validar y certificar"),
       primary_action(values) {
         done = true;
         d.hide();
@@ -1196,7 +1216,16 @@ function fel_annul_dialog(frm, ctx) {
     frappe.dom.freeze(__("Anulando en SAT…"));
     fel_call("annul_invoice", { invoice: frm.doc.name, reason: values.reason })
       .then((r) => {
-        frappe.show_alert({ message: r.message, indicator: r.ok ? "green" : "red" });
+        if (r.ok) {
+          frappe.show_alert({ message: r.message, indicator: "green" });
+        } else {
+          frappe.msgprint({
+            title: __("No se pudo anular en SAT"),
+            indicator: "red",
+            message: `<p>${__("La factura sigue vigente en SAT. Revise el motivo o la conexión con el certificador e intente de nuevo con FEL › Anular en SAT.")}</p>` +
+              (r.message ? `<p class="text-muted small">${__("Respuesta de SAT o del certificador")}: ${frappe.utils.escape_html(r.message)}</p>` : ""),
+          });
+        }
         frm.reload_doc();
       })
       .finally(() => frappe.dom.unfreeze());

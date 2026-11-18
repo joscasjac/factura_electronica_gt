@@ -197,6 +197,10 @@ def ensure_core_custom_fields():
         ignore_validate=True,
         update=True,
     )
+    # Estado FEL on Sales Invoice (list column and filter)
+    from factura_electronica.fel.status import ensure_field
+
+    ensure_field()
 
 
 def after_install():

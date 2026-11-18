@@ -25,7 +25,8 @@
    "in_list_view": 1,
    "label": "Serie",
    "reqd": 1,
-   "search_index": 1
+   "search_index": 1,
+   "allow_on_submit": 1
   },
   {
    "description": "Seleccione el tipo documento <b>FEL</b>",
@@ -34,21 +35,23 @@
    "in_list_view": 1,
    "label": "Tipo Documento",
    "options": "\nFACT\nFACText\nFCAM\nFPEQ\nFCAP\nFESP\nNABN\nRDON\nRECI\nNDEB\nNCRE\nFACA\nFCCA\nFAPE\nFCPE\nFAAE\nFCAE",
-   "reqd": 1
+   "reqd": 1,
+   "allow_on_submit": 1
   },
   {
    "fieldname": "column_break_3",
    "fieldtype": "Column Break"
   },
   {
-   "description": "<b>EN DESARROLLO:</b> Tipo documento para AsisteLibro SAT, aseg\u00farese de que este relacionado con el campo Tipo Documento. NO influye en la generaci\u00f3n de documentos electr\u00f3nicos.",
+   "description": "<b>EN DESARROLLO:</b> Tipo documento para AsisteLibro SAT, asegúrese de que este relacionado con el campo Tipo Documento. NO influye en la generación de documentos electrónicos.",
    "fieldname": "serie_sat",
    "fieldtype": "Select",
    "label": "Serie SAT",
-   "options": "\nFC\nFE\nFCE\nNC\nND\nFPC\nFPE\nFAPE\nFACA\nFAAE\nDA\nFA\nFO\nEP\nFDU"
+   "options": "\nFC\nFE\nFCE\nNC\nND\nFPC\nFPE\nFAPE\nFACA\nFAAE\nDA\nFA\nFO\nEP\nFDU",
+   "allow_on_submit": 1
   },
   {
-   "description": "* Seleccione una combinaci\u00f3n de frases para aplicar en la serie",
+   "description": "* Seleccione una combinación de frases para aplicar en la serie",
    "fieldname": "combinacion_de_frases_section",
    "fieldtype": "Section Break"
   },
@@ -56,32 +59,36 @@
    "fieldname": "combination_of_phrases",
    "fieldtype": "Link",
    "label": "Combination Of Phrases",
-   "options": "Combination Of Phrases"
+   "options": "Combination Of Phrases",
+   "allow_on_submit": 1
   },
   {
    "default": "0",
    "fieldname": "es_exportacion",
    "fieldtype": "Check",
-   "label": "Es Exportacion?"
+   "label": "Es Exportacion?",
+   "allow_on_submit": 1
   },
   {
    "depends_on": "eval:doc.es_exportacion == 1;",
-   "description": "* Seleccione un c\u00f3digo si la serie ser\u00e1 utilizada para facturas exportaci\u00f3n",
+   "description": "* Seleccione un código si la serie será utilizada para facturas exportación",
    "fieldname": "codigo_incoterm",
    "fieldtype": "Select",
    "label": "Codigo INCOTERM",
-   "options": "\nEXW\nFCA\nFAS\nFOB\nCFR\nCIF\nCPT\nCIP\nDDP\nDAP\nDAT\nZZZ"
+   "options": "\nEXW\nFCA\nFAS\nFOB\nCFR\nCIF\nCPT\nCIP\nDDP\nDAP\nDAT\nZZZ",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "section_break_3",
    "fieldtype": "Section Break"
   },
   {
-   "default": "- Las notas de cr\u00e9dito no usa Frases\n- La anulaci\u00f3n de documentos electr\u00f3nicos no usa Frases",
+   "default": "- Las notas de crédito no usa Frases\n- La anulación de documentos electrónicos no usa Frases",
    "fieldname": "notes",
    "fieldtype": "Text",
    "label": "Notes",
-   "read_only": 1
+   "read_only": 1,
+   "allow_on_submit": 1
   }
  ],
  "istable": 1,

@@ -150,11 +150,28 @@ def applies_on_submit(doc):
     return bool(tipo)
 
 
+def from_bulk_action():
+    """True inside the list's bulk Validar / Cancelar (frappe.desk...bulk_update._bulk_action),
+    which bypasses the form's FEL summary and reason dialogs."""
+    import sys
+
+    frame = sys._getframe(1)
+    while frame is not None:
+        if frame.f_code.co_name == "_bulk_action" and frame.f_code.co_filename.endswith("bulk_update.py"):
+            return True
+        frame = frame.f_back
+    return False
+
+
 def on_submit(doc, method=None):
     """Sales Invoice on_submit: certify once the submit is committed."""
     if frappe.flags.in_import or frappe.flags.in_migrate or doc.get("numero_autorizacion_fel"):
         return
     if not applies_on_submit(doc):
+        return
+    if from_bulk_action():
+        # validated without anyone seeing the FEL summary: it stays Pendiente, to be certified
+        # from the list with "Certificar en SAT" (which asks first)
         return
     _special_tax_entries(doc)
     frappe.db.after_commit.add(partial(_certify_after_commit, doc.name))
@@ -291,7 +308,10 @@ def form_context(invoice):
     mode = frappe.db.get_value("Configuracion Factura Electronica", config, "modo") if config and frappe.get_meta("Configuracion Factura Electronica").has_field("modo") else None
     envio = None
     if doc.get("numero_autorizacion_fel"):
-        envio = frappe.db.get_value("Envio FEL", doc.numero_autorizacion_fel, ["fecha", "status", "serie", "numero"], as_dict=True)
+        fields = ["fecha", "status", "serie", "numero"]
+        if frappe.get_meta("Envio FEL").has_field("motivo_anulacion"):
+            fields += ["motivo_anulacion", "fecha_anulacion"]
+        envio = frappe.db.get_value("Envio FEL", doc.numero_autorizacion_fel, fields, as_dict=True)
     cancelled = bool(doc.docstatus == 2 and doc.get("numero_autorizacion_fel"))
     anulada = bool(doc.get("numero_autorizacion_fel") and envio and envio.status == "Cancelled")
     return {
@@ -313,8 +333,10 @@ def form_context(invoice):
         "contingency": bool(doc.get("fel_contingencia")),
         "cancelled": cancelled,
         "anulada": anulada,
+        "motivo_anulacion": envio.get("motivo_anulacion") if envio else None,
+        "fecha_anulacion": str(envio.get("fecha_anulacion")) if envio and envio.get("fecha_anulacion") else None,
         "receptor": doc.get("nombre_segun_sat") or doc.customer_name,
-        "nit": doc.get("nit_face_customer") or "CF",
+        "nit": "CF" if (doc.get("nit_face_customer") or "CF").replace("/", "").upper() == "CF" else doc.nit_face_customer,
         "total": doc.grand_total,
         "currency": doc.currency,
     }
@@ -360,6 +382,19 @@ def set_cancel_reason(invoice, reason):
     frappe.get_doc("Sales Invoice", invoice).check_permission("cancel")
     frappe.cache.set_value(CANCEL_REASON_KEY.format(invoice), str(reason or "")[:255], expires_in_sec=600)
     return True
+
+
+def before_cancel(doc, method=None):
+    """A certified invoice still valid in SAT is cancelled from its form, which asks the
+    reason SAT records. The list's bulk Cancelar would annul it with no reason."""
+    if not doc.get("numero_autorizacion_fel") or frappe.flags.in_migrate or not from_bulk_action():
+        return
+    if frappe.db.get_value("Envio FEL", doc.numero_autorizacion_fel, "status") == "Cancelled":
+        return
+    frappe.throw(
+        _("{0} está certificada en SAT. Cancélela desde la factura: se pide el motivo de la anulación que se envía a SAT.").format(doc.name),
+        title=_("Anulación en SAT"),
+    )
 
 
 def on_cancel(doc, method=None):

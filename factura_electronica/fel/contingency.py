@@ -78,6 +78,9 @@ def enter_contingency(invoice_name, failure_message):
             {"fel_contingencia": 1, "fel_contingencia_desde": now_datetime()},
             update_modified=False,
         )
+    from factura_electronica.fel.status import refresh
+
+    refresh(invoice_name)
     frappe.db.commit()  # nosemgrep: the generators commit; keep the flag even if the request rolls back
     return False, _(
         "El certificador no responde. La factura {0} quedó en contingencia con número de acceso {1}: "
@@ -109,6 +112,9 @@ def clear(invoice_name):
     frappe.db.set_value(
         "Sales Invoice", invoice_name, {"fel_contingencia": 0}, update_modified=False
     )
+    from factura_electronica.fel.status import refresh
+
+    refresh(invoice_name)
 
 
 def _generator_for(invoice):

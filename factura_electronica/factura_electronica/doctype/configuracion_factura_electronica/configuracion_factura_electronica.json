@@ -102,13 +102,15 @@
    "hidden": 1,
    "label": "Modalidad Generacion Factura Electronica",
    "options": "MANUAL",
-   "read_only": 1
+   "read_only": 1,
+   "allow_on_submit": 1
   },
   {
    "fieldname": "url_descarga_pdf",
    "fieldtype": "Data",
    "label": "URL para descargar el PDF",
-   "reqd": 1
+   "reqd": 1,
+   "allow_on_submit": 1
   },
   {
    "fieldname": "configuracion_pdf",
@@ -121,24 +123,28 @@
    "hidden": 1,
    "label": "Descargar PDF Factura Electronica",
    "options": "DESACTIVAR",
-   "read_only": 1
+   "read_only": 1,
+   "allow_on_submit": 1
   },
   {
    "depends_on": "eval:(doc.regimen === 'GFACE')",
    "fieldname": "datos_proveedor_factura_electronica",
    "fieldtype": "Section Break",
-   "label": "Datos del proveedor (GFACE)"
+   "label": "Datos del proveedor (GFACE, heredado)",
+   "collapsible": 1
   },
   {
    "fieldname": "clave",
    "fieldtype": "Data",
-   "label": "Clave"
+   "label": "Clave",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "usuario",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Usuario"
+   "label": "Usuario",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "shs_confguracion",
@@ -148,31 +154,36 @@
    "bold": 1,
    "fieldname": "url_listener",
    "fieldtype": "Data",
-   "label": "URL Web Service"
+   "label": "URL Web Service",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "validador",
    "fieldtype": "Data",
-   "label": "Validador"
+   "label": "Validador",
+   "allow_on_submit": 1
   },
   {
    "depends_on": "eval:doc.regimen === 'GFACE';",
    "fieldname": "configuracion_de_series",
    "fieldtype": "Section Break",
-   "label": "Series (GFACE)"
+   "label": "Series (GFACE, heredado)",
+   "collapsible": 1
   },
   {
    "bold": 1,
    "fieldname": "configuracion_series",
    "fieldtype": "Table",
    "label": "Configuracion Series GFACE",
-   "options": "Configuracion Series"
+   "options": "Configuracion Series",
+   "allow_on_submit": 1
   },
   {
    "depends_on": "eval:doc.regimen == \"GFACE\"",
    "fieldname": "datos_establecimiento",
    "fieldtype": "Section Break",
-   "label": "Datos del establecimiento (GFACE)"
+   "label": "Datos del establecimiento (GFACE, heredado)",
+   "collapsible": 1
   },
   {
    "description": "FEL/GFACE",
@@ -180,31 +191,36 @@
    "fieldtype": "Data",
    "hidden": 1,
    "label": "Codigo Establecimiento",
-   "length": 4
+   "length": 4,
+   "allow_on_submit": 1
   },
   {
    "fieldname": "descripcion_otro_impuesto",
    "fieldtype": "Data",
    "hidden": 1,
    "label": "Descripcion Otro Impuesto",
-   "length": 100
+   "length": 100,
+   "allow_on_submit": 1
   },
   {
    "fieldname": "importe_exento",
    "fieldtype": "Data",
-   "label": "Importe Exento"
+   "label": "Importe Exento",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "importe_otros_impuestos",
    "fieldtype": "Data",
-   "label": "Importe Otros Impuestos"
+   "label": "Importe Otros Impuestos",
+   "allow_on_submit": 1
   },
   {
    "description": "FEL/GFACE",
    "fieldname": "id_dispositivo",
    "fieldtype": "Data",
    "label": "ID Dispositivo",
-   "length": 3
+   "length": 3,
+   "allow_on_submit": 1
   },
   {
    "fieldname": "datos_estab",
@@ -213,12 +229,14 @@
   {
    "fieldname": "nit_gface",
    "fieldtype": "Data",
-   "label": "NIT GFACE"
+   "label": "NIT GFACE",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "importe_total_exento",
    "fieldtype": "Data",
-   "label": "Importe Total Exento"
+   "label": "Importe Total Exento",
+   "allow_on_submit": 1
   },
   {
    "default": "0",
@@ -226,7 +244,8 @@
    "fieldname": "regimen_2989",
    "fieldtype": "Check",
    "hidden": 1,
-   "label": "¿Afecto al regimen 2989?"
+   "label": "¿Afecto al regimen 2989?",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "regimen_isr",
@@ -234,7 +253,8 @@
    "hidden": 1,
    "label": "Regimen ISR",
    "length": 20,
-   "options": "RET_DEFINITIVA\nNO_RET_DEFINITIVA"
+   "options": "RET_DEFINITIVA\nNO_RET_DEFINITIVA",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "amended_from",
@@ -257,13 +277,15 @@
    "fieldname": "plantilla_impuestos",
    "fieldtype": "Link",
    "label": "Plantilla Impuestos",
-   "options": "Purchase Taxes and Charges Template"
+   "options": "Purchase Taxes and Charges Template",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "series_facturas_especiales",
    "fieldtype": "Table",
    "label": "Series Factura Especial",
-   "options": "Series Factura Especial"
+   "options": "Series Factura Especial",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "regimen",
@@ -271,7 +293,8 @@
    "label": "Régimen",
    "options": "FEL",
    "read_only": 1,
-   "reqd": 1
+   "reqd": 1,
+   "allow_on_submit": 1
   },
   {
    "collapsible_depends_on": "eval: doc.regimen === 'FEL';",
@@ -284,14 +307,16 @@
    "description": "FEL",
    "fieldname": "llave_pfx",
    "fieldtype": "Data",
-   "label": "Llave PFX para firmar (Token Signer)"
+   "label": "Llave PFX para firmar (Token Signer)",
+   "allow_on_submit": 1
   },
   {
    "description": "FEL",
    "fieldname": "codigo",
    "fieldtype": "Data",
    "hidden": 1,
-   "label": "Codigo"
+   "label": "Codigo",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "column_break_32",
@@ -301,7 +326,8 @@
    "description": "FEL",
    "fieldname": "alias",
    "fieldtype": "Data",
-   "label": "Alias (Prefijo WS)"
+   "label": "Alias (Prefijo WS)",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "configuracion_series_fel_section",
@@ -312,19 +338,22 @@
    "fieldname": "series_fel",
    "fieldtype": "Table",
    "label": "Series",
-   "options": "Configuracion Series FEL"
+   "options": "Configuracion Series FEL",
+   "allow_on_submit": 1
   },
   {
    "description": "FEL",
    "fieldname": "url_dte",
    "fieldtype": "Data",
-   "label": "URL DTE"
+   "label": "URL DTE",
+   "allow_on_submit": 1
   },
   {
    "description": "FEL",
    "fieldname": "url_firma",
    "fieldtype": "Data",
-   "label": "URL Firma"
+   "label": "URL Firma",
+   "allow_on_submit": 1
   },
   {
    "default": "N",
@@ -333,7 +362,8 @@
    "fieldtype": "Data",
    "label": "Es Anulacion",
    "read_only": 1,
-   "hidden": 1
+   "hidden": 1,
+   "allow_on_submit": 1
   },
   {
    "description": "FEL",
@@ -341,20 +371,23 @@
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Tipo Frase",
-   "options": "\n1: Frase de retención del ISR\n2: Frase de retención del IVA\n3: Frase de no genera derecho a crédito fiscal del IVA\n4: Frase de exento o no afecto al IVA"
+   "options": "\n1: Frase de retención del ISR\n2: Frase de retención del IVA\n3: Frase de no genera derecho a crédito fiscal del IVA\n4: Frase de exento o no afecto al IVA",
+   "allow_on_submit": 1
   },
   {
    "description": "<b>FEL:</b> Envia copia de factura electronica generada para el escenario <b>Cliente/Proveedor no provee su correo electronico</b>",
    "fieldname": "correo_copia",
    "fieldtype": "Data",
    "label": "Correo para copia",
-   "options": "Email"
+   "options": "Email",
+   "allow_on_submit": 1
   },
   {
    "default": "0",
    "fieldname": "lookup_receiver_name_on_submit",
    "fieldtype": "Check",
-   "label": "Buscar el nombre del receptor en SAT al validar"
+   "label": "Buscar el nombre del receptor en SAT al validar",
+   "allow_on_submit": 1
   },
   {
    "collapsible": 1,
@@ -367,26 +400,30 @@
    "fieldname": "asunto",
    "fieldtype": "Data",
    "hidden": 1,
-   "label": "Asunto"
+   "label": "Asunto",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "mensaje",
    "fieldtype": "Text Editor",
    "hidden": 1,
-   "label": "Mensaje"
+   "label": "Mensaje",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "enviado_por",
    "fieldtype": "Link",
    "hidden": 1,
    "label": "Enviado por",
-   "options": "User"
+   "options": "User",
+   "allow_on_submit": 1
   },
   {
    "description": "FEL",
    "fieldname": "llave_ws",
    "fieldtype": "Data",
-   "label": "Llave Web Service"
+   "label": "Llave Web Service",
+   "allow_on_submit": 1
   },
   {
    "bold": 1,
@@ -408,7 +445,8 @@
    "in_standard_filter": 1,
    "label": "Certificador",
    "options": "Certificador FEL",
-   "reqd": 1
+   "reqd": 1,
+   "allow_on_submit": 1
   },
   {
    "allow_on_submit": 1,
@@ -435,25 +473,29 @@
    "fieldname": "afiliacion_iva",
    "fieldtype": "Select",
    "label": "Afiliación IVA",
-   "options": "\nGEN\nEXE\nPEQ"
+   "options": "\nGEN\nEXE\nPEQ",
+   "allow_on_submit": 1
   },
   {
    "description": "FEL",
    "fieldname": "codigo_escenario",
    "fieldtype": "Int",
    "hidden": 1,
-   "label": "Codigo Escenario"
+   "label": "Codigo Escenario",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "series_configuration_for_purchase_invoices_section",
    "fieldtype": "Section Break",
-   "label": "Series de facturas de compra"
+   "label": "Series de facturas de compra",
+   "collapsible": 1
   },
   {
    "fieldname": "purchase_invoice_series",
    "fieldtype": "Table",
    "label": "Series",
-   "options": "Serial Configuration For Purchase Invoice"
+   "options": "Serial Configuration For Purchase Invoice",
+   "allow_on_submit": 1
   },
   {
    "default": "GTQ",
@@ -462,112 +504,130 @@
    "hidden": 1,
    "label": "Local Currency",
    "options": "\nGTQ",
-   "read_only": 1
+   "read_only": 1,
+   "allow_on_submit": 1
   },
   {
    "default": "0",
    "fieldname": "usar_datos_prueba",
    "fieldtype": "Check",
-   "label": "Usar datos de prueba"
+   "label": "Usar datos de prueba",
+   "allow_on_submit": 1
   },
   {
    "depends_on": "eval:doc.usar_datos_prueba",
    "fieldname": "nombre_empresa_prueba",
    "fieldtype": "Data",
-   "label": "Nombre de la empresa de prueba"
+   "label": "Nombre de la empresa de prueba",
+   "allow_on_submit": 1
   },
   {
    "description": "Nombre del Emisor - Nombre requerido INFILE",
    "fieldname": "nombre_Emisor",
    "fieldtype": "Data",
-   "label": "Nombre del emisor"
+   "label": "Nombre del emisor",
+   "allow_on_submit": 1
   },
   {
    "description": "Nombre Comercial",
    "fieldname": "nombre_Comercial",
    "fieldtype": "Data",
-   "label": "Nombre comercial"
+   "label": "Nombre comercial",
+   "allow_on_submit": 1
   },
   {
    "description": "FEL: URL para anular documentos",
    "fieldname": "url_de_anulacion",
    "fieldtype": "Data",
-   "label": "URL de anulación"
+   "label": "URL de anulación",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "tipo_frase_factura_especial",
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Tipo Frase Factura Especial",
-   "options": "\n5: Frase de facturas especiales\n6: Frases de Regimen Especial de contribuyente agropecuario"
+   "options": "\n5: Frase de facturas especiales\n6: Frases de Regimen Especial de contribuyente agropecuario",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "codigo_escenario_factura_especial",
    "fieldtype": "Data",
    "hidden": 1,
-   "label": "Codigo Escenario Factura Especial"
+   "label": "Codigo Escenario Factura Especial",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "tipo_frase_factura_exportacion",
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Tipo Frase Factura Exportacion",
-   "options": "\n1: Frase de retención del ISR\n2: Frase de retención del IVA\n3: Frase de no genera derecho a crédito fiscal del IVA\n4: Frase de exento o no afecto al IVA"
+   "options": "\n1: Frase de retención del ISR\n2: Frase de retención del IVA\n3: Frase de no genera derecho a crédito fiscal del IVA\n4: Frase de exento o no afecto al IVA",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "codigo_escenario_factura_exportacion",
    "fieldtype": "Data",
    "hidden": 1,
-   "label": "Codigo Escenario Factura Exportacion"
+   "label": "Codigo Escenario Factura Exportacion",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "tipo_frase_factura_exenta",
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Tipo Frase Factura Exenta",
-   "options": "\n1: Frase de retención del ISR\n2: Frase de retención del IVA\n3: Frase de no genera derecho a crédito fiscal del IVA\n4: Frase de exento o no afecto al IVA"
+   "options": "\n1: Frase de retención del ISR\n2: Frase de retención del IVA\n3: Frase de no genera derecho a crédito fiscal del IVA\n4: Frase de exento o no afecto al IVA",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "codigo_escenario_factura_exenta",
    "fieldtype": "Data",
    "hidden": 1,
-   "label": "Codigo Escenario Factura Exenta"
+   "label": "Codigo Escenario Factura Exenta",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "otras_configuraciones_section",
    "fieldtype": "Section Break",
-   "label": "Otras opciones"
+   "label": "Otras opciones",
+   "collapsible": 1
   },
   {
    "description": "Seleccione el campo que desee mostrar en el campo descripción de producto para el documento electrónico a generar.",
    "fieldname": "descripcion_item",
    "fieldtype": "Select",
    "label": "Descripción del ítem",
-   "options": "Nombre de Item\nDescripcion de Item"
+   "options": "Nombre de Item\nDescripcion de Item",
+   "allow_on_submit": 1
   },
   {
    "description": "<b>A continuación los generadores disponibles en Factura Electrónica App, seleccione los que desee para esta instancia: </b>",
    "fieldname": "documentos_electronicos_section",
    "fieldtype": "Section Break",
-   "label": "Documentos electrónicos habilitados"
+   "label": "Documentos electrónicos habilitados",
+   "collapsible": 1
   },
   {
    "default": "0",
    "fieldname": "factura_venta_fel",
    "fieldtype": "Check",
-   "label": "Factura"
+   "label": "Factura",
+   "allow_on_submit": 1
   },
   {
    "default": "0",
    "fieldname": "nota_credito_fel",
    "fieldtype": "Check",
-   "label": "Nota de crédito"
+   "label": "Nota de crédito",
+   "allow_on_submit": 1
   },
   {
    "default": "0",
    "fieldname": "anulador_de_facturas_ventas_fel",
    "fieldtype": "Check",
-   "label": "Anulación de documentos"
+   "label": "Anulación de documentos",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "column_break_13",
@@ -577,39 +637,45 @@
    "default": "0",
    "fieldname": "factura_exportacion_fel",
    "fieldtype": "Check",
-   "label": "Factura de exportación"
+   "label": "Factura de exportación",
+   "allow_on_submit": 1
   },
   {
    "default": "0",
    "fieldname": "factura_especial_fel",
    "fieldtype": "Check",
-   "label": "Factura especial"
+   "label": "Factura especial",
+   "allow_on_submit": 1
   },
   {
    "default": "0",
    "description": "Disponible para Bienes y Servicios (No Combustibles)",
    "fieldname": "factura_electronica_fel_pos",
    "fieldtype": "Check",
-   "label": "Factura desde punto de venta (POS)"
+   "label": "Factura desde punto de venta (POS)",
+   "allow_on_submit": 1
   },
   {
    "description": "Seleccione el valor de fecha/tiempo que desee mostrar en los documentos electrónicos a generar.\n",
    "fieldname": "fecha_y_tiempo_documento_electronica",
    "fieldtype": "Select",
    "label": "Fecha y hora del documento electrónico",
-   "options": "Fecha y tiempo de peticion a INFILE\nFecha y tiempo creacion documento"
+   "options": "Fecha y tiempo de peticion a INFILE\nFecha y tiempo creacion documento",
+   "allow_on_submit": 1
   },
   {
    "default": "0",
    "fieldname": "nota_de_debito_electronica",
    "fieldtype": "Check",
-   "label": "Nota de débito"
+   "label": "Nota de débito",
+   "allow_on_submit": 1
   },
   {
    "default": "0",
    "fieldname": "factura_cambiaria_fel",
    "fieldtype": "Check",
-   "label": "Factura cambiaria"
+   "label": "Factura cambiaria",
+   "allow_on_submit": 1
   },
   {
    "depends_on": "eval:doc.is_individual == 1",
@@ -617,13 +683,15 @@
    "fieldname": "facelec_name_of_owner",
    "fieldtype": "Data",
    "label": "Nombre del propietario",
-   "read_only": 1
+   "read_only": 1,
+   "allow_on_submit": 1
   },
   {
    "default": "0",
    "fieldname": "is_individual",
    "fieldtype": "Check",
-   "label": "¿La empresa es de un propietario individual?"
+   "label": "¿La empresa es de un propietario individual?",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "certificar_al_validar",

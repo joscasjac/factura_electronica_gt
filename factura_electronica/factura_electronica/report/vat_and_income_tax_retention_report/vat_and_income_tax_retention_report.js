@@ -9,7 +9,7 @@ frappe.query_reports["VAT and Income Tax Retention Report"] = {
             label: __("Company"),
             fieldtype: "Link",
             options: "Company",
-            default: "",
+            default: frappe.defaults.get_user_default("Company"),
             reqd: 1,
             on_change: function () {
                 frappe.db
@@ -44,7 +44,7 @@ frappe.query_reports["VAT and Income Tax Retention Report"] = {
         },
         {
             fieldname: "to_date",
-            label: __("To"),
+            label: __("To Date"),
             fieldtype: "Date",
             default: frappe.datetime.month_end(frappe.datetime.add_months(frappe.datetime.get_today(), -1)),
             reqd: 1,

@@ -131,3 +131,22 @@ frappe.ui.form.on('Configuracion Series FEL', {
 //         });
 //     }
 // });
+
+// Status of the configuration at the top: mode and which automations are on.
+frappe.ui.form.on('Configuracion Factura Electronica', {
+    refresh: function (frm) {
+        if (frm.is_new()) return;
+        const esc = frappe.utils.escape_html;
+        const off = [
+            ['certificar_al_validar', __('certificar al validar')],
+            ['tipo_documento_automatico', __('elegir el tipo de documento')],
+            ['anular_al_cancelar', __('anular al cancelar')],
+        ].filter(([f]) => frm.fields_dict[f] && !frm.doc[f]).map(([, label]) => label);
+        let text = __('Modo {0}.', [`<strong>${esc(__(frm.doc.modo || 'Demo'))}</strong>`]);
+        if (frm.doc.modo === 'Demo') text += ' ' + __('Se valida contra los esquemas de SAT sin enviar nada; las facturas no tienen validez fiscal.');
+        if (frm.doc.modo === 'Pruebas') text += ' ' + __('Usa el ambiente de pruebas del certificador.');
+        if (frm.doc.modo === 'Producción') text += ' ' + __('Las facturas se envían a SAT y tienen validez fiscal.');
+        if (off.length) text += ' ' + __('Automatización apagada: {0}. Puede activarla abajo sin cancelar la configuración.', [esc(off.join(', '))]);
+        frm.dashboard.set_headline_alert(text, off.length ? 'orange' : (frm.doc.modo === 'Producción' ? 'green' : 'blue'), true);
+    },
+});

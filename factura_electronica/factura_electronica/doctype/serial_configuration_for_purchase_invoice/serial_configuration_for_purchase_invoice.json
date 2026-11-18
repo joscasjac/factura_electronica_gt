@@ -19,7 +19,8 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Serie",
-   "reqd": 1
+   "reqd": 1,
+   "allow_on_submit": 1
   },
   {
    "description": "Seleccione el tipo documento <b>FEL</b>",
@@ -28,7 +29,8 @@
    "in_list_view": 1,
    "label": "Tipo Documento",
    "options": "\nFACT\nFCAM\nFPEQ\nFCAP\nFESP\nNABN\nRDON\nRECI\nNDEB\nNCRE\nFACA\nFCCA\nFAPE\nFCPE\nFAAE\nFCAE",
-   "reqd": 1
+   "reqd": 1,
+   "allow_on_submit": 1
   },
   {
    "fieldname": "column_break_3",
@@ -39,7 +41,8 @@
    "fieldname": "serie_sat",
    "fieldtype": "Select",
    "label": "Serie SAT",
-   "options": "\nFC\nFE\nFCE\nNC\nND\nFPC\nFPE\nFAPE\nFACA\nFAAE\nDA\nFA\nFO\nEP\nFDU"
+   "options": "\nFC\nFE\nFCE\nNC\nND\nFPC\nFPE\nFAPE\nFACA\nFAAE\nDA\nFA\nFO\nEP\nFDU",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "section_break_5",
@@ -49,7 +52,8 @@
    "fieldname": "combination_of_phrases",
    "fieldtype": "Link",
    "label": "Combination Of Phrases",
-   "options": "Combination Of Phrases"
+   "options": "Combination Of Phrases",
+   "allow_on_submit": 1
   }
  ],
  "istable": 1,

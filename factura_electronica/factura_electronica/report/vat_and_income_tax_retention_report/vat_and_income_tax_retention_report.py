@@ -42,67 +42,67 @@ def get_columns():
             "label": _("Retention Date"),
             "fieldname": "retention_date",
             "fieldtype": "Date",
-            "width": 100
+            "width": 110
         },
         {
             "label": _("Retention Type"),
             "fieldname": "retention_type",
             "fieldtype": "Data",
-            "width": 70
+            "width": 120
         },
         {
             "label": _("Invoice Number"),
             "fieldname": "invoice_number",
             "fieldtype": "Data",
-            "width": 100
+            "width": 170
         },
         {
             "label": _("Tax ID"),
             "fieldname": "tax_id",
             "fieldtype": "Data",
-            "width": 100
+            "width": 110
         },
         {
             "label": _("Entity"),
             "fieldname": "entity",
             "fieldtype": "Data",
-            "width": 100
+            "width": 220
         },
         {
             "label": _("Invoice Date"),
             "fieldname": "invoice_date",
             "fieldtype": "Date",
-            "width": 100
+            "width": 110
         },
         {
             "label": _("Invoice Total"),
             "fieldname": "invoice_total",
             "fieldtype": "Currency",
-            "width": 100
+            "width": 130
         },
         {
             "label": _("Retention Amount"),
             "fieldname": "retention_amount",
             "fieldtype": "Currency",
-            "width": 100
+            "width": 140
         },
         {
             "label": _("Purchase Ledger Number"),
             "fieldname": "purchase_ledger_number",
             "fieldtype": "Data",
-            "width": 100
+            "width": 150
         },
         {
             "label": _("Journal Entry"),
             "fieldname": "journal_entry",
             "fieldtype": "Data",
-            "width": 100
+            "width": 170
         },
         {
             "label": _("Retention Confirmation Number"),
             "fieldname": "retention_confirmation_number",
             "fieldtype": "Data",
-            "width": 100
+            "width": 190
         },
     ]
 

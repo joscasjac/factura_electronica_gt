@@ -9,7 +9,7 @@ frappe.query_reports["GT Sales Ledger"] = {
       label: __("Company"),
       fieldtype: "Link",
       options: "Company",
-      default: "",
+      default: frappe.defaults.get_user_default("Company"),
       reqd: 1,
       on_change: function () {
         frappe.db.get_value("Company", frappe.query_report.get_filter_value("company"), "tax_id").then((r) => {
@@ -46,7 +46,7 @@ frappe.query_reports["GT Sales Ledger"] = {
     },
     {
       fieldname: "to_date",
-      label: __("To"),
+      label: __("To Date"),
       fieldtype: "Date",
       default: frappe.datetime.month_end(frappe.datetime.add_months(frappe.datetime.get_today(), -1)),
       reqd: 1,
@@ -78,14 +78,6 @@ frappe.query_reports["GT Sales Ledger"] = {
       fieldtype: "Break",
     },
     {
-      fieldname: "note_report",
-      label: __("Note"),
-      default: "No se incluyen descripcion de facturas con items no configurados, ni items de combustibles",
-      fieldtype: "Data",
-      read_only: 1,
-      width: "40px",
-    },
-    {
       fieldname: "options",
       label: __("Options"),
       default: "No Subtotal",
@@ -94,6 +86,13 @@ frappe.query_reports["GT Sales Ledger"] = {
     },
   ],
   onload: function (report) {
+    // what the book leaves out, said once under the filters instead of as a read-only filter
+    report.page.wrapper
+      .find(".page-form")
+      .after(`<p class="text-muted small" style="margin: 4px 15px 0">${__("No incluye facturas con artículos sin configurar como bien o servicio, ni combustibles.")}</p>`);
+    if (!frappe.query_report.get_filter_value("company")) {
+      frappe.query_report.set_filter_value("company", frappe.defaults.get_user_default("Company"));
+    }
     report.page.add_inner_button(__("Download Report"), function () {
       if (report.data.length > 0) {
         let d = new frappe.ui.Dialog({
@@ -120,14 +119,14 @@ frappe.query_reports["GT Sales Ledger"] = {
               method: "factura_electronica.factura_electronica.report.gt_sales_ledger.gt_sales_ledger.generate_report_files",
               args: {
                 data: report.data,
-                col_idx: report.filters[8].value, // El rango
+                col_idx: frappe.query_report.get_filter_value("options"), // El rango
                 filters: JSON.stringify(filters),
                 report_name: report.report_name,
                 f_type: values.format,
                 r_name: "GT Sales Ledger",
               },
               freeze: true,
-              freeze_message: __("Generating and saving file") + " 📄📄📄",
+              freeze_message: __("Generando el archivo…"),
               callback: (r) => {
                 // on success
                 // console.log(r.message);
@@ -141,7 +140,7 @@ frappe.query_reports["GT Sales Ledger"] = {
                 // Sucess MSG
                 frappe.show_alert(
                   {
-                    message: __("File Generated!"),
+                    message: __("Archivo listo"),
                     indicator: "green",
                   },
                   6

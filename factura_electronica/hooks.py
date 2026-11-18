@@ -54,7 +54,7 @@ app_include_js = ["factura_electronica.bundle.js"]
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
-# doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
+doctype_list_js = {"Sales Invoice": "public/js/sales_invoice_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
 
@@ -112,10 +112,13 @@ doc_events = {
         "on_submit": ["factura_electronica.api.pos_calculations",
                       "factura_electronica.api.generate_access_number",
                       "factura_electronica.buscar_nit.buscar_nombre",
-                      "factura_electronica.fel.auto.on_submit"],
+                      "factura_electronica.fel.auto.on_submit",
+                      "factura_electronica.fel.status.on_invoice_event"],
+        "on_update_after_submit": "factura_electronica.fel.status.on_invoice_event",
         "after_insert": "factura_electronica.api.generate_access_number",
         "before_insert": "factura_electronica.fel.auto.choose_document_type",
-        "on_cancel": "factura_electronica.fel.auto.on_cancel",
+        "before_cancel": "factura_electronica.fel.auto.before_cancel",
+        "on_cancel": ["factura_electronica.fel.auto.on_cancel", "factura_electronica.fel.status.on_invoice_event"],
     },
     "Purchase Invoice": {
         # "on_save": "factura_electronica.api.get_tax_html",
@@ -131,7 +134,9 @@ doc_events = {
         'on_update': 'factura_electronica.api_erp.custom_customer_info'
     },
     'Envio FEL': {
-        'after_insert': 'factura_electronica.fel.print_support.attach_certifier_pdf'
+        'after_insert': ['factura_electronica.fel.print_support.attach_certifier_pdf',
+                         'factura_electronica.fel.status.on_envio_event'],
+        'on_update': 'factura_electronica.fel.status.on_envio_event',
     },
 }
 

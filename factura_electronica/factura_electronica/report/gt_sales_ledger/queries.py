@@ -11,6 +11,29 @@ from frappe import _
 
 # NOTE: IMPORTANTE: Los montos se convierten a la moneda default de la compañia
 
+# What SAT considers a valid sale: certified and not annulled in SAT. That includes invoices
+# cancelled in ERPNext whose annulment never reached SAT, and leaves out invoices that were
+# never certified (pending, contingency, non-FEL series) or were annulled in SAT.
+SAT_VALID = """SI.docstatus IN (1, 2)
+        AND IFNULL(SI.numero_autorizacion_fel, '') != ''
+        AND NOT EXISTS (SELECT 1 FROM `tabEnvio FEL` EF WHERE EF.name = SI.numero_autorizacion_fel AND EF.status = 'Cancelled')"""
+
+
+def excluded_from_book(filters):
+    """Submitted invoices in the period that the book leaves out, by Estado FEL."""
+    rows = frappe.db.sql(
+        f"""SELECT SI.name, SI.docstatus, IFNULL(SI.numero_autorizacion_fel, '') AS uuid,
+        (SELECT EF.status FROM `tabEnvio FEL` EF WHERE EF.name = SI.numero_autorizacion_fel) AS envio_status
+        FROM `tabSales Invoice` SI
+        WHERE SI.docstatus = 1 AND SI.company = %(company)s
+        AND SI.posting_date BETWEEN %(from_date)s AND %(to_date)s""",
+        {"company": filters.company, "from_date": filters.from_date, "to_date": filters.to_date},
+        as_dict=True,
+    )
+    uncertified = [r.name for r in rows if not r.uuid]
+    annulled = [r.name for r in rows if r.uuid and r.envio_status == "Cancelled"]
+    return uncertified, annulled
+
 def sales_invoices(filters):
     """
     Query para obtener datos sobre las facturas de venta de la base de datos.
@@ -50,7 +73,7 @@ def sales_invoices(filters):
         FROM `tabSales Invoice` AS SI
         JOIN `tabSales Invoice Item` AS SII
         ON SI.NAME = SII.parent
-        WHERE SI.docstatus=1 AND SI.company = '{filters.company}'
+        WHERE {SAT_VALID} AND SI.company = '{filters.company}'
         AND SI.posting_date BETWEEN '{filters.from_date}' AND '{filters.to_date}'
         {filters_query} GROUP BY SI.name ORDER BY SI.posting_date ASC
         """, as_dict=True
@@ -82,7 +105,7 @@ def sales_invoices_weekly(filters):
         SUM(SI.grand_total * SI.conversion_rate) AS total, SI.currency AS currency_inv,
         '{filters.company_currency}' AS currency
         FROM `tabSales Invoice` AS SI
-        WHERE SI.docstatus=1 AND SI.company = '{filters.company}'
+        WHERE {SAT_VALID} AND SI.company = '{filters.company}'
         AND YEARWEEK(SI.posting_date, 1) BETWEEN YEARWEEK('{filters.from_date}', 1) AND YEARWEEK('{filters.to_date}', 1)
         GROUP BY week_repo ORDER BY year_repo, week_repo_no ASC;
         """, as_dict=True
@@ -105,7 +128,7 @@ def sales_invoices_monthly(filters):
         SUM(SI.grand_total * SI.conversion_rate) AS total, SI.currency AS currency_inv,
         '{filters.company_currency}' AS currency
         FROM `tabSales Invoice` AS SI
-        WHERE SI.docstatus=1 AND SI.company = '{filters.company}'
+        WHERE {SAT_VALID} AND SI.company = '{filters.company}'
         AND DATE_FORMAT(SI.posting_date, '%Y%m') BETWEEN DATE_FORMAT('{filters.from_date}', '%Y%m') AND DATE_FORMAT('{filters.to_date}', '%Y%m')
         GROUP BY year_repo, month_repo ORDER BY year_repo, month_repo ASC;
         """, as_dict=True
@@ -130,7 +153,7 @@ def sales_invoices_quarterly(filters):
         SUM(SI.grand_total * SI.conversion_rate) AS total, SI.currency AS currency_inv,
         '{filters.company_currency}' AS currency
         FROM `tabSales Invoice` AS SI
-        WHERE SI.docstatus=1 AND SI.company = '{filters.company}'
+        WHERE {SAT_VALID} AND SI.company = '{filters.company}'
         AND CONCAT(YEAR(SI.posting_date), QUARTER(SI.posting_date))
         BETWEEN
         CONCAT(YEAR('{filters.from_date}'), QUARTER('{filters.from_date}')) AND

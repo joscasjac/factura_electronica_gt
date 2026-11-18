@@ -198,8 +198,19 @@ def fel_print_context(doc):
         fecha_certificacion=None,
         establecimiento=None,
         tipo_cambio=None,
+        verify_url=None,
+        receptor_nit=None,
+        consumidor_final=False,
     )
     context.establecimiento = _establishment(doc)
+    company_names = {doc.company, frappe.get_cached_value("Company", doc.company, "company_name")}
+    if frappe.get_meta("Company").has_field("facelec_trade_name"):
+        company_names.add(frappe.get_cached_value("Company", doc.company, "facelec_trade_name"))
+    if context.establecimiento and context.establecimiento.nombre in company_names:
+        context.establecimiento.nombre = None  # "Establecimiento 1" alone, not the company again
+    nit = (doc.get("nit_face_customer") or doc.get("tax_id") or "CF").strip()
+    context.consumidor_final = nit.replace("/", "").upper() == "CF"
+    context.receptor_nit = "CF" if context.consumidor_final else nit
     company_currency = frappe.get_cached_value("Company", doc.company, "default_currency")
     if doc.get("currency") and doc.currency != company_currency:
         context.tipo_cambio = "{0} 1 = {1} {2:.5f}".format(doc.currency, company_currency, flt(doc.conversion_rate))
@@ -226,6 +237,11 @@ def fel_print_context(doc):
         "Certificador FEL", envio.certificador, ["razon_social", "nit"], as_dict=True
     ) if envio.certificador else None
     context.qr = fel_qr_markup(doc.numero_autorizacion_fel)
+    if not context.demo and context.envio.status != "Cancelled":
+        try:
+            context.verify_url = fel_verification_url(doc.numero_autorizacion_fel)
+        except Exception:
+            context.verify_url = None
     try:
         root = etree.fromstring((context.envio.xml_certificado or "").encode("utf-8"))
         generales = root.find(".//" + DTE + "DatosGenerales")
@@ -274,7 +290,9 @@ def _readable_datetime(value):
         return None
     text = str(value).replace("T", " ")[:16]
     try:
-        return frappe.utils.format_datetime(text, frappe.utils.get_user_date_format() + " HH:mm")
+        # formatdate speaks Frappe's dd-mm-yyyy; handing that pattern to Babel's
+        # format_datetime would read "mm" as minutes (10:12 on 18 Nov -> 18-12)
+        return f"{frappe.utils.formatdate(text[:10])} {text[11:16]}".strip()
     except Exception:
         return text
 

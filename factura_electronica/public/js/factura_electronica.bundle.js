@@ -10,3 +10,4 @@ import './supplier_quotation';
 import './goalSeek';
 import './sales_invoice_actions';
 import './report_defaults';
+import './renamed_invoice';

@@ -9,7 +9,7 @@ frappe.query_reports["VAT Payable and Receivable Conciliation"] = {
             label: __("Company"),
             fieldtype: "Link",
             options: "Company",
-            default: "",
+            default: frappe.defaults.get_user_default("Company"),
             reqd: 1,
             on_change: function () {
                 frappe.db

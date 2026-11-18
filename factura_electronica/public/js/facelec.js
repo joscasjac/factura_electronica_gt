@@ -1,4 +1,3 @@
-console.log("Se cargo exitosamente la aplicación de Factura Electrónica");
 /* 1 --------------------------------------------------------------------------------------------------------------- */
 /**
  * Funcionamiento: Valida que el Nit sea C/F o un numero de nit valido permitiendo

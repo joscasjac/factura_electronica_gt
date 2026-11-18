@@ -13,7 +13,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "AUTOMATED RETENTION",
-  "translated_text": "RETENCI\u00d3N AUTOM\u00c1TICA"
+  "translated_text": "RETENCIÓN AUTOMÁTICA"
  },
  {
   "context": null,
@@ -29,7 +29,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Acceptance Date",
-  "translated_text": "Fecha Aceptaci\u00f3n"
+  "translated_text": "Fecha Aceptación"
  },
  {
   "context": null,
@@ -77,7 +77,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Amount with excise tax amount deducted. This amount is subject to sales tax.",
-  "translated_text": "Importe con el importe del impuesto especial deducido. Este importe est\u00e1 sujeto al impuesto sobre las ventas."
+  "translated_text": "Importe con el importe del impuesto especial deducido. Este importe está sujeto al impuesto sobre las ventas."
  },
  {
   "context": null,
@@ -93,7 +93,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Applies for ISR withholding",
-  "translated_text": "Aplica para la retenci\u00f3n del ISR?"
+  "translated_text": "Aplica para la retención del ISR?"
  },
  {
   "context": null,
@@ -109,7 +109,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Applies for VAT withholding",
-  "translated_text": "Aplica la retenci\u00f3n del IVA?"
+  "translated_text": "Aplica la retención del IVA?"
  },
  {
   "context": null,
@@ -125,7 +125,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Are you sure you want to proceed to cancell a Sales Invoice FEL?",
-  "translated_text": "\u00bfEst\u00e1 seguro de que desea proceder a la cancelaci\u00f3n de una factura de venta FEL?"
+  "translated_text": "¿Está seguro de que desea proceder a la cancelación de una factura de venta FEL?"
  },
  {
   "context": null,
@@ -141,7 +141,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Are you sure you want to proceed to generate a Electronic Special Invoice?",
-  "translated_text": "\u00bfEst\u00e1 seguro de que desea proceder a generar una factura especial electr\u00f3nica?"
+  "translated_text": "¿Está seguro de que desea proceder a generar una factura especial electrónica?"
  },
  {
   "context": null,
@@ -157,7 +157,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Are you sure you want to proceed to generate a credit note?",
-  "translated_text": "\u00bfEst\u00e1 seguro de que quiere proceder a generar una nota de cr\u00e9dito?"
+  "translated_text": "¿Está seguro de que quiere proceder a generar una nota de crédito?"
  },
  {
   "context": null,
@@ -173,7 +173,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Are you sure you want to proceed to generate a electronic debit note?",
-  "translated_text": "\u00bfEst\u00e1 seguro de que quiere proceder a generar una nota de d\u00e9bito electr\u00f3nica?"
+  "translated_text": "¿Está seguro de que quiere proceder a generar una nota de débito electrónica?"
  },
  {
   "context": null,
@@ -189,7 +189,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Batch Electronic Invoice",
-  "translated_text": "Factura Electr\u00f3nica por Lotes"
+  "translated_text": "Factura Electrónica por Lotes"
  },
  {
   "context": null,
@@ -205,7 +205,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Batch Status",
-  "translated_text": "Estado Lotes Factura Electr\u00f3nica"
+  "translated_text": "Estado Lotes Factura Electrónica"
  },
  {
   "context": null,
@@ -301,7 +301,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Consumable Acquisition Record",
-  "translated_text": "Constancia de Adquisici\u00f3n de Insumos"
+  "translated_text": "Constancia de Adquisición de Insumos"
  },
  {
   "context": null,
@@ -365,7 +365,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Date of Retention",
-  "translated_text": "Fecha de Retenci\u00f3n"
+  "translated_text": "Fecha de Retención"
  },
  {
   "context": null,
@@ -397,7 +397,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Declaration Date",
-  "translated_text": "Fecha de la Declaraci\u00f3n"
+  "translated_text": "Fecha de la Declaración"
  },
  {
   "context": null,
@@ -445,7 +445,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Documents In Declaration",
-  "translated_text": "Documentos incluidos en la declaraci\u00f3n"
+  "translated_text": "Documentos incluidos en la declaración"
  },
  {
   "context": null,
@@ -493,7 +493,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Excise Tax calculation",
-  "translated_text": "C\u00e1lculo del impuesto especial"
+  "translated_text": "Cálculo del impuesto especial"
  },
  {
   "context": null,
@@ -541,7 +541,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Excise tax calculation",
-  "translated_text": "C\u00e1lculo del impuesto especial"
+  "translated_text": "Cálculo del impuesto especial"
  },
  {
   "context": null,
@@ -573,7 +573,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Exporter ID issuing country",
-  "translated_text": "Pa\u00eds de emisi\u00f3n de identificaci\u00f3n del exportador"
+  "translated_text": "País de emisión de identificación del exportador"
  },
  {
   "context": null,
@@ -589,7 +589,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Exporter ID number",
-  "translated_text": "No. Identificaci\u00f3n exportador"
+  "translated_text": "No. Identificación exportador"
  },
  {
   "context": null,
@@ -605,7 +605,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Exporter ID type",
-  "translated_text": "Tipo de identificaci\u00f3n del exportador"
+  "translated_text": "Tipo de identificación del exportador"
  },
  {
   "context": null,
@@ -621,7 +621,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Exporter Identification Type and Number",
-  "translated_text": "No. y Tipo de Identificaci\u00f3n del Exportador"
+  "translated_text": "No. y Tipo de Identificación del Exportador"
  },
  {
   "context": null,
@@ -653,7 +653,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "GT General Ledger",
-  "translated_text": "Libro Mayor GT"
+  "translated_text": "Libro Mayor"
  },
  {
   "context": null,
@@ -669,7 +669,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "GT Journal",
-  "translated_text": "Diario GT"
+  "translated_text": "Libro Diario"
  },
  {
   "context": null,
@@ -685,7 +685,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "GT Purchase Ledger",
-  "translated_text": "Libro Compras GT"
+  "translated_text": "Libro de Compras"
  },
  {
   "context": null,
@@ -701,7 +701,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "GT Sales Ledger",
-  "translated_text": "Libro Ventas GT"
+  "translated_text": "Libro de Ventas"
  },
  {
   "context": null,
@@ -749,7 +749,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Goods",
-  "translated_text": "Mercanc\u00edas"
+  "translated_text": "Mercancías"
  },
  {
   "context": null,
@@ -861,7 +861,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "If checked, the tax is deducted from item price. If unchecked, tax will be added to price.",
-  "translated_text": "Si se comprueba, el impuesto se deduce del precio del art\u00edculo. Si no se marca, el impuesto se a\u00f1adir\u00e1 al precio."
+  "translated_text": "Si se comprueba, el impuesto se deduce del precio del artículo. Si no se marca, el impuesto se añadirá al precio."
  },
  {
   "context": null,
@@ -909,7 +909,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Income Tax Retention Payable Account",
-  "translated_text": "Cuenta de retenci\u00f3n del impuesto sobre la renta a pagar"
+  "translated_text": "Cuenta de retención del impuesto sobre la renta a pagar"
  },
  {
   "context": null,
@@ -1133,7 +1133,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Is it an international invoice?",
-  "translated_text": "\u00bfEs una factura internacional?"
+  "translated_text": "¿Es una factura internacional?"
  },
  {
   "context": null,
@@ -1149,7 +1149,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "LOG DETAILS INFLATION",
-  "translated_text": "REGISTRO DE LOS DETALLES DE LA INFLACI\u00d3N"
+  "translated_text": "REGISTRO DE LOS DETALLES DE LA INFLACIÓN"
  },
  {
   "context": null,
@@ -1165,7 +1165,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Legal Name, for tax, government or contract use. For Example: Apple, Inc. Amazon.com, Inc., The Home Depot, Inc.",
-  "translated_text": "Raz\u00f3n Social o Nombre Registrado, para uso de gobierno, facturacion, impuestos, o contratos. Por Ejemplo: Apple, Inc. Amazon.com, Inc., The Home Depot, Inc."
+  "translated_text": "Razón Social o Nombre Registrado, para uso de gobierno, facturacion, impuestos, o contratos. Por Ejemplo: Apple, Inc. Amazon.com, Inc., The Home Depot, Inc."
  },
  {
   "context": null,
@@ -1181,7 +1181,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Log Details Inflation",
-  "translated_text": "Detalles del registros de Inflaci\u00f3n"
+  "translated_text": "Detalles del registros de Inflación"
  },
  {
   "context": null,
@@ -1197,7 +1197,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Maximum Amount To Apply ISR",
-  "translated_text": "Cantidad m\u00e1xima para aplicar el ISR"
+  "translated_text": "Cantidad máxima para aplicar el ISR"
  },
  {
   "context": null,
@@ -1213,7 +1213,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Minimum Amount To Apply ISR",
-  "translated_text": "Cantidad m\u00ednima para aplicar el ISR"
+  "translated_text": "Cantidad mínima para aplicar el ISR"
  },
  {
   "context": null,
@@ -1405,7 +1405,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Public Writ",
-  "translated_text": "Escritura P\u00fablica"
+  "translated_text": "Escritura Pública"
  },
  {
   "context": null,
@@ -1437,7 +1437,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Purchase and Sales Ledger Tax Declaration",
-  "translated_text": "Declaraci\u00f3n de impuestos del libro de compras y ventas"
+  "translated_text": "Declaración de impuestos del libro de compras y ventas"
  },
  {
   "context": null,
@@ -1453,7 +1453,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Purchase and Sales Ledger Tax Declaration Report",
-  "translated_text": "Informe de declaraci\u00f3n de impuestos del libro de compras y ventas"
+  "translated_text": "Informe de declaración de impuestos del libro de compras y ventas"
  },
  {
   "context": null,
@@ -1469,7 +1469,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Purpose",
-  "translated_text": "Prop\u00f3sito"
+  "translated_text": "Propósito"
  },
  {
   "context": null,
@@ -1517,7 +1517,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Reason for cancellation?",
-  "translated_text": "Motivo de la cancelaci\u00f3n?"
+  "translated_text": "Motivo de la cancelación?"
  },
  {
   "context": null,
@@ -1597,7 +1597,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Sales Tax for this Row",
-  "translated_text": "Impuesto sobre las ventas para esta l\u00ednea"
+  "translated_text": "Impuesto sobre las ventas para esta línea"
  },
  {
   "context": null,
@@ -1645,7 +1645,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Subtotal amount of excise tax for this line",
-  "translated_text": "Importe subtotal del impuesto especial para esta l\u00ednea"
+  "translated_text": "Importe subtotal del impuesto especial para esta línea"
  },
  {
   "context": null,
@@ -1661,7 +1661,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Supplier Invoice Number",
-  "translated_text": "N\u00famero de la factura"
+  "translated_text": "Número de la factura"
  },
  {
   "context": null,
@@ -1709,7 +1709,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "TAX WITHOLDING RANGES SECTION",
-  "translated_text": "SECCI\u00d3N DE RANGOS DE RETENCI\u00d3N DE IMPUESTOS"
+  "translated_text": "SECCIÓN DE RANGOS DE RETENCIÓN DE IMPUESTOS"
  },
  {
   "context": null,
@@ -1789,7 +1789,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Tax Category Group",
-  "translated_text": "Grupos de Categor\u00eda de Impuestos"
+  "translated_text": "Grupos de Categoría de Impuestos"
  },
  {
   "context": null,
@@ -1885,7 +1885,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Tax Retention Guatemala",
-  "translated_text": "Retenci\u00f3n de impuestos Guatemala"
+  "translated_text": "Retención de impuestos Guatemala"
  },
  {
   "context": null,
@@ -1901,7 +1901,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Tax Witholding Ranges",
-  "translated_text": "Rangos de retenci\u00f3n de impuestos"
+  "translated_text": "Rangos de retención de impuestos"
  },
  {
   "context": null,
@@ -1917,7 +1917,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Tax Witholding Ranges Section",
-  "translated_text": "Secci\u00f3n de Rangos de Retenci\u00f3n de Impuestos"
+  "translated_text": "Sección de Rangos de Retención de Impuestos"
  },
  {
   "context": null,
@@ -1933,7 +1933,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Tax amount per each stock quantity of this item",
-  "translated_text": "Importe del impuesto por cada cantidad de existencias de este art\u00edculo"
+  "translated_text": "Importe del impuesto por cada cantidad de existencias de este artículo"
  },
  {
   "context": null,
@@ -1965,7 +1965,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Taxable Unit Code",
-  "translated_text": "C\u00f3digo de la unidad tributaria"
+  "translated_text": "Código de la unidad tributaria"
  },
  {
   "context": null,
@@ -2013,7 +2013,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Three Digit UOM Code",
-  "translated_text": "C\u00f3digo de tres d\u00edgitos UOM"
+  "translated_text": "Código de tres dígitos UOM"
  },
  {
   "context": null,
@@ -2029,7 +2029,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Three digit UOM code as requested by Infile",
-  "translated_text": "C\u00f3digo UOM de tres d\u00edgitos solicitado por Infile"
+  "translated_text": "Código UOM de tres dígitos solicitado por Infile"
  },
  {
   "context": null,
@@ -2061,7 +2061,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "Trade Name",
-  "translated_text": "Nombre Comercial o Ficticio"
+  "translated_text": "Nombre comercial"
  },
  {
   "context": null,
@@ -2093,7 +2093,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "UOM Tax Included in Price",
-  "translated_text": "El impuesto de la unidad de medida est\u00e1 incluido en el precio"
+  "translated_text": "El impuesto de la unidad de medida está incluido en el precio"
  },
  {
   "context": null,
@@ -2157,7 +2157,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "VAT Declaration",
-  "translated_text": "Declaraci\u00f3n de impuestos"
+  "translated_text": "Declaración de impuestos"
  },
  {
   "context": null,
@@ -2173,7 +2173,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "VAT Exemption Record",
-  "translated_text": "Constancia de Exenci\u00f3n de IVA"
+  "translated_text": "Constancia de Exención de IVA"
  },
  {
   "context": null,
@@ -2189,7 +2189,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "VAT Payable and Receivable Conciliation",
-  "translated_text": "Conciliaci\u00f3n del IVA a pagar y a cobrar"
+  "translated_text": "Conciliación del IVA a pagar y a cobrar"
  },
  {
   "context": null,
@@ -2205,7 +2205,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "VAT Retention Payable",
-  "translated_text": "Retenci\u00f3n del IVA a pagar"
+  "translated_text": "Retención del IVA a pagar"
  },
  {
   "context": null,
@@ -2221,7 +2221,7 @@
   "parentfield": "",
   "parenttype": "",
   "source_text": "VAT Retention to compensate",
-  "translated_text": "Retenci\u00f3n del IVA para compensar"
+  "translated_text": "Retención del IVA para compensar"
  },
  {
   "context": null,
@@ -2333,7 +2333,7 @@
   "parentfield": null,
   "parenttype": null,
   "source_text": "Enter the grand total amount that you want calculated for this line.",
-  "translated_text": "Introduzca el importe total que desea calcular para esta l\u00ednea."
+  "translated_text": "Introduzca el importe total que desea calcular para esta línea."
  },
  {
   "context": null,
@@ -2349,7 +2349,7 @@
   "parentfield": null,
   "parenttype": null,
   "source_text": "FEL: Check if the item applies to discount to show in electronic invoice generation.",
-  "translated_text": "FEL: Marque si el art\u00edculo aplica a descuento para mostrarlo en la generaci\u00f3n de la factura electr\u00f3nica."
+  "translated_text": "FEL: Marque si el artículo aplica a descuento para mostrarlo en la generación de la factura electrónica."
  },
  {
   "context": null,
@@ -2365,7 +2365,7 @@
   "parentfield": null,
   "parenttype": null,
   "source_text": "Are you sure to cancel the current electronic document?",
-  "translated_text": "\u00bfEst\u00e1 seguro de anular el documento electr\u00f3nico actual?"
+  "translated_text": "¿Está seguro de anular el documento electrónico actual?"
  },
  {
   "context": null,
@@ -2381,7 +2381,7 @@
   "parentfield": null,
   "parenttype": null,
   "source_text": "Electronic Document Canceller",
-  "translated_text": "Anulador Documento Electr\u00f3nico"
+  "translated_text": "Anulador Documento Electrónico"
  },
  {
   "context": null,
@@ -2429,7 +2429,7 @@
   "parentfield": null,
   "parenttype": null,
   "source_text": "Code and Item Image",
-  "translated_text": "Imagen y C\u00f3digo del Producto"
+  "translated_text": "Imagen y Código del Producto"
  },
  {
   "context": null,
@@ -2509,7 +2509,7 @@
   "parentfield": null,
   "parenttype": null,
   "source_text": "Series Configuration For Purchase Invoices",
-  "translated_text": "Configuraci\u00f3n series para facturas de compra"
+  "translated_text": "Configuración series para facturas de compra"
  },
  {
   "context": null,
@@ -2541,7 +2541,7 @@
   "parentfield": null,
   "parenttype": null,
   "source_text": "Combination Of Phrases",
-  "translated_text": "Combinaci\u00f3n De Frases"
+  "translated_text": "Combinación De Frases"
  },
  {
   "context": null,
@@ -2573,7 +2573,7 @@
   "parentfield": null,
   "parenttype": null,
   "source_text": "Access Number FCAM",
-  "translated_text": "N\u00fameros De Acceso FCAM"
+  "translated_text": "Números De Acceso FCAM"
  },
  {
   "context": null,
@@ -2589,7 +2589,7 @@
   "parentfield": null,
   "parenttype": null,
   "source_text": "Series Configuration For Sales Invoices",
-  "translated_text": "Configuraci\u00f3n De Series Para Facturas De Venta"
+  "translated_text": "Configuración De Series Para Facturas De Venta"
  },
  {
   "context": null,
@@ -2605,7 +2605,7 @@
   "parentfield": null,
   "parenttype": null,
   "source_text": "Tax per category",
-  "translated_text": "Impuesto por categor\u00eda"
+  "translated_text": "Impuesto por categoría"
  },
  {
   "context": null,
@@ -2621,7 +2621,7 @@
   "parentfield": null,
   "parenttype": null,
   "source_text": "TAX FACELEC",
-  "translated_text": "Descripci\u00f3n Impuestos Factura Electr\u00f3nica"
+  "translated_text": "Descripción Impuestos Factura Electrónica"
  },
  {
   "context": null,
@@ -2957,7 +2957,7 @@
   "parentfield": null,
   "parenttype": null,
   "source_text": "Applies only for production.",
-  "translated_text": "Aplica solo para modo producci\u00f3n."
+  "translated_text": "Aplica solo para modo producción."
  },
  {
   "context": null,

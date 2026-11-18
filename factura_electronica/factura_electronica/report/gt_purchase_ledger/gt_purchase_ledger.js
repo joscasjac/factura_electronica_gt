@@ -9,7 +9,7 @@ frappe.query_reports["GT Purchase Ledger"] = {
       label: __("Company"),
       fieldtype: "Link",
       options: "Company",
-      default: "",
+      default: frappe.defaults.get_user_default("Company"),
       reqd: 1,
       on_change: function () {
         frappe.db.get_value("Company", frappe.query_report.get_filter_value("company"), "tax_id").then((r) => {
@@ -53,7 +53,7 @@ frappe.query_reports["GT Purchase Ledger"] = {
     },
     {
       fieldname: "to_date",
-      label: __("To"),
+      label: __("To Date"),
       fieldtype: "Date",
       default: frappe.datetime.month_end(frappe.datetime.add_months(frappe.datetime.get_today(), -1)),
       reqd: 1,
@@ -131,7 +131,7 @@ frappe.query_reports["GT Purchase Ledger"] = {
                 r_name: "GT Purchase Ledger",
               },
               freeze: true,
-              freeze_message: __("Generating and saving file") + " 📄📄📄",
+              freeze_message: __("Generando el archivo…"),
               callback: (r) => {
                 // on success
                 // console.log(r.message);
@@ -145,7 +145,7 @@ frappe.query_reports["GT Purchase Ledger"] = {
                 // Sucess MSG
                 frappe.show_alert(
                   {
-                    message: __("File Generated!"),
+                    message: __("Archivo listo"),
                     indicator: "green",
                   },
                   6

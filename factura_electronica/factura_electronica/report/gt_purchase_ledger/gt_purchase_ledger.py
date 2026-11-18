@@ -38,6 +38,12 @@ def execute(filters=None):
 
         if not filters:
             return columns, []
+        filters = frappe._dict(filters)
+        # the company filter may be defaulted without its on_change running in the browser
+        if filters.company and not filters.company_currency:
+            filters.company_currency = frappe.get_cached_value("Company", filters.company, "default_currency")
+        if filters.company and not filters.nit:
+            filters.nit = frappe.get_cached_value("Company", filters.company, "tax_id")
 
         # Conversion fechas filtro a objetos date
         start_d = datetime.datetime.strptime(filters.from_date, "%Y-%m-%d")
