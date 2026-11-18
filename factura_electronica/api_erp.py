@@ -80,18 +80,18 @@ def journal_entry_isr(invoice_name, debit_in_acc_currency, cost_center='',
 
         # si hay problema al crear la poliza
         if new_je[0] == False:
-            frappe.msgprint(msg=_(f'More details in the following log \n <code>{new_je[1]}</code>'),
+            frappe.msgprint(msg=_('More details in the following log') + f' \n <code>{new_je[1]}</code>',
                         title=_('Sorry, a problem occurred while trying to generate the Journal Entry'), indicator='red')
             return
 
         # si se crea correctamente la poliza
         if new_je[0] == True:
-            frappe.msgprint(msg=_(f'Generated with the series \n <code>{new_je[1]}</code>'),
+            frappe.msgprint(msg=_('Generated with the series') + f' \n <code>{new_je[1]}</code>',
                         title=_('Successfully generated'), indicator='green')
             return
 
     except:
-        frappe.msgprint(msg=_(f'More details in the following log \n <code>{frappe.get_traceback()}</code>'),
+        frappe.msgprint(msg=_('More details in the following log') + f' \n <code>{frappe.get_traceback()}</code>',
                         title=_('Sorry, a problem occurred while trying to generate the Journal Entry'), indicator='red')
 
 
@@ -115,16 +115,16 @@ def journal_entry_isr_purchase_inv(invoice_name, credit_in_acc_currency, cost_ce
                                         is_multicurrency, description, cost_center).create()
 
         if new_je[0] == False:
-            frappe.msgprint(msg=_(f'More details in the following log \n {new_je[1]}'),
+            frappe.msgprint(msg=_('More details in the following log') + f' \n {new_je[1]}',
                             title=_('Sorry, a problem occurred while trying to generate the Journal Entry'), indicator='red')
             return
         if new_je[0] == True:
-            frappe.msgprint(msg=_(f'Generated with the series \n {new_je[1]}'),
+            frappe.msgprint(msg=_('Generated with the series') + f' \n {new_je[1]}',
                             title=_('Successfully generated'), indicator='green')
             return
 
     except:
-        frappe.msgprint(msg=_(f'More details in the following log \n {frappe.get_traceback()}'),
+        frappe.msgprint(msg=_('More details in the following log') + f' \n {frappe.get_traceback()}',
                         title=_('Sorry, a problem occurred while trying to generate the Journal Entry'), indicator='red')
 
 

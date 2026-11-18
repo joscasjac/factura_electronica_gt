@@ -88,7 +88,7 @@ def generate_vat_declaration(company, year, month, declared, report_data):
 
                 # SI OCURRE ALGUN ERROR
                 except:
-                    frappe.msgprint(msg=_(f'More details in the following log \n <code>{frappe.get_traceback()}</code>'),
+                    frappe.msgprint(msg=_('More details in the following log') + f' \n <code>{frappe.get_traceback()}</code>',
                         title=_('Sorry, a problem occurred while trying to generate the VAT declaration'), indicator='red')
                     return
 
@@ -120,11 +120,11 @@ def generate_vat_declaration(company, year, month, declared, report_data):
                             title=_('Process completed'), indicator='yellow')
             return
 
-        frappe.msgprint(msg=_(f'The Tax Declaration register has been created, with name {status_declaration.name}'),
+        frappe.msgprint(msg=_('The Tax Declaration register has been created, with name {0}').format(status_declaration.name),
                         title=_('Process successfully completed'), indicator='green')
         return
 
     except:
-        frappe.msgprint(msg=_(f'More details in the following log \n {frappe.get_traceback()}'),
+        frappe.msgprint(msg=_('More details in the following log') + f' \n {frappe.get_traceback()}',
                         title=_('Sorry, a problem occurred while trying to generate the VAT declaration'), indicator='red')
         return

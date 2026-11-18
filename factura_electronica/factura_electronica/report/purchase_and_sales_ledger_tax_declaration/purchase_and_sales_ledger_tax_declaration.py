@@ -50,7 +50,7 @@ def execute(filters=None):
             return columns, data
 
         else:
-            frappe.msgprint(msg=_(f'More details in the following log \n {status_file[1]}'),
+            frappe.msgprint(msg=_('More details in the following log') + f' \n {status_file[1]}',
                             title=_('Sorry, a problem occurred while trying to generate the Journal Entry'), indicator='red')
             return columns, [{}]
 

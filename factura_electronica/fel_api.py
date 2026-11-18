@@ -775,14 +775,14 @@ def api_interface_export(invoice_code, naming_series):
         # Si el proceso es OK
         if type(state_of[1]) is dict:
             new_serie = frappe.db.get_value('Envio FEL', {'name': state_of[1]["msj"]}, 'serie_para_factura')
-            frappe.msgprint(msg=_(f'Electronic invoice generated with universal unique identifier <b>{state_of[1]["msj"]}</b>'),
+            frappe.msgprint(msg=_('Electronic invoice generated with universal unique identifier <b>{0}</b>').format(state_of[1]["msj"]),
                             title=_('Process successfully completed'), indicator='green')
 
             return True, str(new_serie)
 
         else:
             new_serie = frappe.db.get_value('Envio FEL', {'name': state_of[1]}, 'serie_para_factura')
-            frappe.msgprint(msg=_(f'Electronic invoice generated with universal unique identifier <b>{state_of[1]}</b>'),
+            frappe.msgprint(msg=_('Electronic invoice generated with universal unique identifier <b>{0}</b>').format(state_of[1]),
                             title=_('Process successfully completed'), indicator='green')
 
             return True, str(new_serie)
