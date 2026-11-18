@@ -8,6 +8,7 @@ from __future__ import unicode_literals
 import sys
 import types
 import unittest
+from unittest.mock import patch
 
 
 def _ensure_import_stubs():
@@ -68,23 +69,30 @@ class TestNombreReceptor(unittest.TestCase):
             self.assertEqual(field, "customer_name")
             return "Master SA"
 
-        frappe.db.get_value = get_value
         row = {
             "nombre_segun_sat": None,
             "customer_name": " ",
             "customer": "CUST-1",
         }
-        self.assertEqual(nombre_receptor_for_row(row), "Master SA")
+        # Swap frappe.db for a stand-in: assigning onto the real (proxied) db on a site
+        # leaks the fake get_value into every later test.
+        with patch.object(frappe, "db", types.SimpleNamespace(get_value=get_value)):
+            self.assertEqual(nombre_receptor_for_row(row), "Master SA")
 
     def test_row_does_not_emit_none_when_every_name_is_missing(self):
         import frappe
 
-        frappe.db.get_value = lambda *args, **kwargs: None
-        self.assertEqual(
-            nombre_receptor_for_row({"nombre_segun_sat": None, "customer_name": None}),
-            "",
-        )
-        self.assertNotIn("None", nombre_receptor_for_row({"nombre_segun_sat": None}))
+        db = types.SimpleNamespace(get_value=lambda *args, **kwargs: None)
+        with patch.object(frappe, "db", db):
+            self.assertEqual(
+                nombre_receptor_for_row(
+                    {"nombre_segun_sat": None, "customer_name": None}
+                ),
+                "",
+            )
+            self.assertNotIn(
+                "None", nombre_receptor_for_row({"nombre_segun_sat": None})
+            )
 
 
 if __name__ == "__main__":
