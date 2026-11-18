@@ -10,6 +10,7 @@ import sys
 import types
 import unittest
 import urllib.error
+from unittest.mock import patch
 
 
 def _ensure_import_stubs():
@@ -91,15 +92,22 @@ class TestBuscarNit(unittest.TestCase):
                 raise urllib.error.URLError("timed out")
             return _Response({"nombre": "NOMBRE SAT"})
 
-        frappe.db.get_value = get_value
-        frappe.db.sql = lambda *args, **kwargs: [("secret",)]
-        frappe.db.set_value = set_value
-        frappe.log_error = log_error
-        self._original_urlopen = urllib.request.urlopen
-        urllib.request.urlopen = urlopen
-
-    def tearDown(self):
-        urllib.request.urlopen = self._original_urlopen
+        # Patch, never assign: on a real site a leftover fake frappe.db breaks every later test.
+        fake_db = types.SimpleNamespace(
+            get_value=get_value,
+            sql=lambda *args, **kwargs: [("secret",)],
+            set_value=set_value,
+        )
+        for target, value in (
+            ("db", fake_db),
+            ("log_error", log_error),
+        ):
+            patcher = patch.object(frappe, target, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        patcher = patch.object(urllib.request, "urlopen", urlopen)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def test_off_does_not_call_the_service(self):
         self.enabled = 0
