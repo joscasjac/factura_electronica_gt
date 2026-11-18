@@ -651,4 +651,6 @@ def get_special_tax(item_code='', company=''):
     taxes = frappe.db.get_value('Item Default', filters={'parent': item_code, 'company': company},
                                 fieldname=fields, as_dict=1)
 
-    return taxes or False
+    # Items without an Item Default row for the company have no per-unit tax. Returning
+    # False made every caller fail on .get() and blocked FEL for those items.
+    return taxes or frappe._dict()
