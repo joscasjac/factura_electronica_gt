@@ -55,8 +55,8 @@ Verified on Frappe 16.34 / ERPNext 16.35 / HRMS 16.19 with the integration tests
   - `anular_al_cancelar`: Cancel on a certified invoice asks the reason and annuls in SAT.
 - Sales Invoice form (`public/js/sales_invoice.js`): the 13 one-off ALL-CAPS buttons are
   replaced by a status line (certificada / pendiente / contingencia / anulada, Demo warning),
-  one primary action and a "FEL" menu (PDF, nota de crédito, nota de débito, cobro con
-  retención, anular). One summary dialog replaces "Permanently submit/cancel?" when FEL acts.
+  one primary action and a "FEL" menu (PDF, nota de débito, cobro con retención,
+  anular); credit notes use ERPNext's own Crear › Devolución / Nota de crédito. One summary dialog replaces "Permanently submit/cancel?" when FEL acts.
 - FEL fields on Sales Invoice show only when they hold a value or apply; the second NIT,
   legacy GFACE CAE fields and the duplicate VAT total are hidden; DPI/passport flags are set
   from the customer's ID type (l10n_guatemala). List view drops the three yes/no columns.
@@ -68,8 +68,9 @@ Verified on Frappe 16.34 / ERPNext 16.35 / HRMS 16.19 with the integration tests
 - Cancellation stores `motivo_anulacion` / `fecha_anulacion` on Envio FEL.
 - Print format: ANULADO banner, readable certification date, establishment, currency and
   exchange rate, Factura Cambiaria installments, QR caption, no QR on Demo or annulled
-  documents, darker table header, address without repetition. (Printing a cancelled invoice
-  needs Print Settings › Allow Print for Cancelled.)
+  documents, darker table header, address without repetition. Patch
+  `allow_print_annulled_documents` turns on Print Settings › Allow Print for Cancelled once,
+  so annulled DTEs can be reprinted.
 - SAT books default to the previous month; 130+ Spanish translations added.
 - The IDP special-tax GL correction runs on the server at submit (it ran in the browser
   after submit, under a name certification had already changed).

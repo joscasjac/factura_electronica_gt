@@ -696,7 +696,6 @@
       frm.add_custom_button(__("PDF del documento"), () => open_fel_pdf(ctx.uuid, frm), FEL_GROUP);
     }
     if (frm.doc.docstatus === 1 && certified && !frm.doc.is_return && !frm.doc.is_debit_note) {
-      frm.add_custom_button(__("Nota de cr\xE9dito"), () => fel_make_note(frm, "credit"), FEL_GROUP);
       frm.add_custom_button(__("Nota de d\xE9bito"), () => fel_make_note(frm, "debit"), FEL_GROUP);
       if (frm.doc.outstanding_amount > 0) {
         frm.add_custom_button(__("Cobro con retenci\xF3n ISR / IVA"), () => btn_journal_entry_retention_dialog(frm), FEL_GROUP);
@@ -1891,4 +1890,4 @@
     });
   })();
 })();
-//# sourceMappingURL=factura_electronica.bundle.JZ3QDJ73.js.map
+//# sourceMappingURL=factura_electronica.bundle.X3BJA345.js.map

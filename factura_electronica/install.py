@@ -201,6 +201,9 @@ def ensure_core_custom_fields():
 
 def after_install():
     ensure_core_custom_fields()
+    from factura_electronica.patches.allow_print_annulled_documents import execute as allow_print_annulled
+
+    allow_print_annulled()
     sync_optional_fixtures()
     sync_uom_fel_codes()
 
