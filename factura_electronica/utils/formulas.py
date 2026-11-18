@@ -44,43 +44,38 @@ def amount_converter(monto, currency_exchange, from_currency="GTQ", to_currency=
 
 # Aplicara el calculo no importando la moneda
 # Nota aplicarle conversion si es necesario
+RETENTION_FIELDS = ['isr_account_payable', 'isr_account_receivable', 'iva_account_payable',
+                    'vat_account_receivable', 'vat_retention_to_compensate', 'vat_retention_payable',
+                    'income_tax_retention_payable_account', 'isr_percentage_rate', 'minimum_amount',
+                    'maximum_amount', 'iva_percentage_rate']
+
+
+def retention_brackets(company):
+    """Company > Tax Witholding Ranges sorted by minimum amount."""
+    rows = frappe.get_all('Tax Witholding Ranges',
+                          filters={'parent': company, 'parenttype': 'Company'},
+                          fields=RETENTION_FIELDS, order_by='minimum_amount asc')
+    return rows
+
+
 def apply_formula_isr(monto, company, decimals=2):
+    """ISR to withhold on an amount without IVA, Régimen Opcional Simplificado.
+
+    Brackets come from Company > Tax Witholding Ranges (minimum, maximum, rate). A
+    maximum of 0 means no upper limit. Each bracket taxes only the slice of the amount
+    inside it, so with 5% up to Q30,000 and 7% above: 30,000 x 5% + (monto - 30,000) x 7%.
+    (Upstream multiplied the 7% bracket's minimum by 7 without dividing by 100.)
     """
-    Formula para obtener ISR
-
-    Args:
-        monto (float): Monto sin IVA
-
-    Returns:
-        float: ISR
-    """
-    monto_sin_iva = monto
-
-    # Obtenemos los rangos de renteciones IVA - ISR
-    retention_ranges = frappe.db.get_values('Tax Witholding Ranges', filters={'parent': company},
-                                            fieldname=['isr_account_payable', 'isr_account_receivable',
-                                                       'iva_account_payable', 'vat_account_receivable',
-                                                       'isr_percentage_rate', 'minimum_amount',
-                                                       'maximum_amount', 'iva_percentage_rate'], as_dict=1)
-
-    # En funcion al monto, validamos que porcentaje de retencion usar
-    for retention in retention_ranges:
-        # Aplicamos el 5%
-        if (monto > retention.get('minimum_amount')) and (monto <= retention.get('maximum_amount')):
-            isr_5 = monto_sin_iva * (retention.get('isr_percentage_rate')/100)
-
-            # return round(isr_5, int(decimals))
-            return isr_5  # sin aproximaciones, redondeo
-
-        # Aplicamos el 7%
-        if (monto >= retention.get('minimum_amount')) and (retention.get('maximum_amount') == 0):
-            isr_5 = retention.get('minimum_amount') * retention.get('isr_percentage_rate')
-            isr_7 = (monto_sin_iva - retention.get('minimum_amount')) * (retention.get('isr_percentage_rate')/100)
-
-            total_isr_7_reten = isr_5 + isr_7
-
-            # return round(total_isr_7_reten, int(decimals))
-            return total_isr_7_reten  # sin aproximaciones, redondeo
+    monto = flt(monto)
+    isr = 0
+    for bracket in retention_brackets(company):
+        low = flt(bracket.get('minimum_amount'))
+        high = flt(bracket.get('maximum_amount')) or None
+        if monto <= low:
+            continue
+        top = monto if high is None else min(monto, high)
+        isr += (top - low) * flt(bracket.get('isr_percentage_rate')) / 100
+    return isr
 
 
 def apply_formula_isr_iva(grand_total, invoice_name, supplier_type, item_tax_category,

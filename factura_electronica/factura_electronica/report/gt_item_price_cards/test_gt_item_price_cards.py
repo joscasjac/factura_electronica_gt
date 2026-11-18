@@ -100,6 +100,10 @@ def cards_for(*rows, versions=None, as_of=AS_OF, from_date=None):
     return build_cards(list(rows), versions or [], as_of, from_date)
 
 
+
+# Standalone the stub's throw raises ValueError; on a bench frappe.throw raises ValidationError.
+INVALID_FILTERS = (ValueError, getattr(sys.modules["frappe"], "ValidationError", ValueError))
+
 class TestPriceHistory(TestCase):
     def test_version_edit_is_the_previous_price(self):
         rows = cards_for(
@@ -322,6 +326,8 @@ class TestPriceFilters(TestCase):
         self.conn = sqlite3.connect(":memory:")
         self.conn.row_factory = sqlite3.Row
         self._schema()
+        saved_db = getattr(frappe, "db", None)
+        self.addCleanup(setattr, frappe, "db", saved_db)
         frappe.db = SqliteDB(self.conn)
 
     def tearDown(self):
@@ -493,15 +499,15 @@ class TestPriceFilters(TestCase):
         self.assertEqual(data[0]["image"], "/files/uno.jpg")
 
     def test_invalid_filters_raise(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(INVALID_FILTERS):
             normalize_price_filters({})
-        with self.assertRaises(ValueError):
+        with self.assertRaises(INVALID_FILTERS):
             normalize_price_filters({
                 "price_list": "Venta GTQ",
                 "from_date": "2026-12-01",
                 "to_date": "2026-01-01",
             })
-        with self.assertRaises(ValueError):
+        with self.assertRaises(INVALID_FILTERS):
             execute({
                 "price_list": "Venta GTQ",
                 "item_group": "No existe",

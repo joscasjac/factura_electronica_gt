@@ -6,6 +6,7 @@ from __future__ import unicode_literals
 import json
 import time
 
+from factura_electronica.fel import contingency
 import frappe
 from frappe import _
 
@@ -177,12 +178,16 @@ def generate_electronic_invoice(invoice_code, naming_series):
         # PASO 4: FIRMA CERTIFICADA Y ENCRIPTADA
         # En este paso se convierte de JSON a XML y se codifica en base64
         status_firma = new_invoice.sign_invoice()
+        if status_firma[0] == False and contingency.certifier_unavailable(status_firma[1]):
+            return contingency.enter_contingency(invoice_code, status_firma[1])
         if status_firma[0] == False:  # Si no se firma correctamente
             return False, f'Ocurrio un problema al tratar de firmar la petición, vericar tener la url correcta para \
                 firmas en Configuracion Factura Electroónica mas detalle en: {status_firma[1]}'
 
         # PASO 5: SOLICITAMOS FACTURA ELECTRONICA
         status_facelec = new_invoice.request_electronic_invoice()
+        if status_facelec[0] == False and contingency.certifier_unavailable(status_facelec[1]):
+            return contingency.enter_contingency(invoice_code, status_facelec[1])
         if status_facelec[0] == False:
             return False, f'Ocurrio un problema al tratar de generar factura electronica, mas detalles en: {status_facelec[1]}'
 
@@ -311,6 +316,26 @@ def generate_credit_note(invoice_code, naming_series, reference_inv, reason):
     except:
         return False, str(frappe.get_traceback())
 ##Empieza la funcion para las notas de abono
+
+
+@frappe.whitelist()
+def generate_sales_debit_note(invoice_code, naming_series, reference_inv, reason):
+    """Nota de Débito (NDEB) issued by the seller from a Sales Invoice debit note.
+
+    ERPNext: Sales Invoice with is_debit_note = 1 and return_against = the certified
+    original. The XML is the credit-note structure (ReferenciasNota complement to
+    the original UUID) with Tipo NDEB taken from the series configuration.
+    The older generate_debit_note builds NDEB from a Purchase Invoice and stays
+    available for that flow.
+    """
+    if frappe.db.get_value('Sales Invoice', invoice_code, 'is_debit_note') != 1:
+        return False, _('La factura {0} no es una nota de débito (is_debit_note).').format(invoice_code)
+    status = generate_credit_note(invoice_code, naming_series, reference_inv, reason)
+    if status and status[0]:
+        envio = frappe.db.get_value('Envio FEL', {'serie_factura_original': invoice_code})
+        if envio:
+            frappe.db.set_value('Envio FEL', envio, 'tipo_documento', 'Nota de Debito')
+    return status
 
 
 @frappe.whitelist()
@@ -829,12 +854,16 @@ def generate_electronic_export_invoice(invoice_code, naming_series):
         # PASO 4: FIRMA CERTIFICADA Y ENCRIPTADA
         # En este paso se convierte de JSON a XML y se codifica en base64
         status_firma = new_invoice.sign_invoice()
+        if status_firma[0] == False and contingency.certifier_unavailable(status_firma[1]):
+            return contingency.enter_contingency(invoice_code, status_firma[1])
         if status_firma[0] == False:  # Si no se firma correctamente
             return False, f'Ocurrio un problema en el proceso, mas detalle en: {status_firma[1]}'
 
 
         # # PASO 5: SOLICITAMOS FACTURA ELECTRONICA EXPORTACION
         status_facelec = new_invoice.request_electronic_invoice()
+        if status_facelec[0] == False and contingency.certifier_unavailable(status_facelec[1]):
+            return contingency.enter_contingency(invoice_code, status_facelec[1])
         if status_facelec[0] == False:
             return False, f'Ocurrio un problema al tratar de generar facturas electronica, mas detalles en: {status_facelec[1]}'
 
@@ -1233,6 +1262,8 @@ def generate_exchange_invoice_si(invoice_code: str, naming_series: str) -> tuple
         # Firma certificacion
         # # En este paso se convierte de JSON a XML y se codifica en base64
         status_firma = new_exch_inv.sign_invoice()
+        if status_firma[0] == False and contingency.certifier_unavailable(status_firma[1]):
+            return contingency.enter_contingency(invoice_code, status_firma[1])
         if status_firma[0] == False:  # Si no se firma correctamente
             frappe.msgprint(msg=_(f'No se pudo generar la certificacion de la peticion para generar documento electronico, mas detalles en: {status_firma[1]}'),
                             title=_('<b>Factura Cambiaria</b>: Proceso no completado'), indicator='red')
@@ -1240,6 +1271,8 @@ def generate_exchange_invoice_si(invoice_code: str, naming_series: str) -> tuple
 
         # Solicitud generacion Doc Electronico
         status_facelec = new_exch_inv.request_electronic_invoice()
+        if status_facelec[0] == False and contingency.certifier_unavailable(status_facelec[1]):
+            return contingency.enter_contingency(invoice_code, status_facelec[1])
         if status_facelec[0] == False:
             frappe.msgprint(msg=_(f'No se pudo generar el documento electronico solicitado, mas detalles en el siguiente log: {status_facelec[1]}'),
                             title=_('<b>Factura Cambiaria</b>: Proceso no completado'), indicator='red')

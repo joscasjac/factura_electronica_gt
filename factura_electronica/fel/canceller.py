@@ -80,8 +80,8 @@ class CancelDocument:
                                 "@FechaEmisionDocumentoAnular": str(issue_date),  # "2020-03-04T00:00:00-06:00",
                                 "@FechaHoraAnulacion": get_fecha_hora_now(),  # "2020-04-21T00:00:00-06:00",
                                 "@ID": "DatosAnulacion",
-                                "@IDReceptor": str(self.info_invoice.tax_id).replace('-', '').replace('/', '').upper().strip(),
-                                "@MotivoAnulacion": "Anulación",
+                                "@IDReceptor": str(self.info_invoice.tax_id or 'CF').replace('-', '').replace('/', '').upper().strip(),
+                                "@MotivoAnulacion": (str(self.__reason or "").strip() or "Anulación")[:255],
                                 "@NITEmisor": self.tax_id_company,
                                 "@NumeroDocumentoAAnular": self.info_invoice.numero_autorizacion_fel
                             }
@@ -104,8 +104,8 @@ class CancelDocument:
                                 "@FechaEmisionDocumentoAnular": str(issue_date),  # "2020-03-04T00:00:00-06:00",
                                 "@FechaHoraAnulacion": get_fecha_hora_now(),  # "2020-04-21T00:00:00-06:00",
                                 "@ID": "DatosAnulacion",
-                                "@IDReceptor": str(self.info_invoice.tax_id).replace('-', '').replace('/', '').upper().strip(),
-                                "@MotivoAnulacion": "Anulación",
+                                "@IDReceptor": str(self.info_invoice.tax_id or 'CF').replace('-', '').replace('/', '').upper().strip(),
+                                "@MotivoAnulacion": (str(self.__reason or "").strip() or "Anulación")[:255],
                                 "@NITEmisor": self.tax_id_company,
                                 "@NumeroDocumentoAAnular": self.info_invoice.numero_autorizacion_fel
                                 }
@@ -227,6 +227,9 @@ class CancelDocument:
             # Solo actualizamos el estado del doc ya generado como cancelado
             doc = frappe.get_doc('Envio FEL', {'name': self.info_invoice.numero_autorizacion_fel})
             doc.status = 'Cancelled'
+            if doc.meta.has_field('motivo_anulacion'):
+                doc.motivo_anulacion = (str(self.__reason or '').strip() or 'Anulación')[:255]
+                doc.fecha_anulacion = frappe.utils.now_datetime()
             doc.save(ignore_permissions=True)
 
             return True, 'OK answers'

@@ -16,20 +16,10 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Reports",
-   "link_count": 8,
+   "link_count": 7,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Prepared Report",
-   "link_count": 0,
-   "link_to": "Prepared Report Facelec",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
   },
   {
    "hidden": 0,
@@ -270,7 +260,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-10-22 21:15:00.000000",
+ "modified": "2026-11-18 18:30:00.000000",
  "modified_by": "Administrator",
  "module": "Factura Electronica",
  "name": "Factura Electronica",

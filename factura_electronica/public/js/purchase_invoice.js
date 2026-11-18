@@ -367,7 +367,7 @@ function redondeo_sales_invoice(a, b) {
 function btn_factura_especial(frm) {
   cur_frm.clear_custom_buttons();
   frm
-    .add_custom_button(__("GENERAR FACTURA ESPECIAL ELECTRONICA FEL"), function () {
+    .add_custom_button(__("Certificar factura especial en SAT"), function () {
       frappe.confirm(
         __("Are you sure you want to proceed to generate a Electronic Special Invoice?"),
         () => {
@@ -408,12 +408,12 @@ function btn_factura_especial(frm) {
  * @param {object} frm
  */
 function btn_poliza_factura_especial(frm) {
-  cur_frm.page.add_action_item(__("Journal Entry for Special Invoice"), function () {
+  frm.add_custom_button(__("Pago con retención (partida)"), function () {
     let d = new frappe.ui.Dialog({
-      title: "New Journal Entry with Withholding Tax for special invoice",
+      title: __("Pago de factura especial con retención"),
       fields: [
         {
-          label: "Cost Center",
+          label: __("Centro de costo"),
           fieldname: "cost_center",
           fieldtype: "Link",
           options: "Cost Center",
@@ -427,7 +427,7 @@ function btn_poliza_factura_especial(frm) {
           default: "",
         },
         {
-          label: "Source account",
+          label: __("Cuenta de pago (banco o caja)"),
           fieldname: "credit_in_acc_currency",
           fieldtype: "Link",
           options: "Account",
@@ -445,31 +445,31 @@ function btn_poliza_factura_especial(frm) {
           fieldtype: "Column Break",
         },
         {
-          label: "Is Multicurrency",
+          label: __("Multimoneda"),
           fieldname: "is_multicurrency",
           fieldtype: "Check",
         },
         {
-          label: "NOTE",
+          label: __("Nota"),
           fieldname: "note",
           fieldtype: "Data",
           read_only: 1,
           default:
-            "Los cálculos se realizaran correctamente si se encuentran configurados en company, y si el iva va incluido en la factura",
+            __("Usa los rangos de retención de la empresa; el IVA debe venir incluido en la factura."),
         },
         {
-          label: "Description",
+          label: __("Descripción"),
           fieldname: "section_asdads",
           fieldtype: "Section Break",
           collapsible: 1,
         },
         {
-          label: "Description",
+          label: __("Descripción"),
           fieldname: "description",
           fieldtype: "Long Text",
         },
       ],
-      primary_action_label: "Create",
+      primary_action_label: __("Crear partida"),
       primary_action(values) {
         frappe.call({
           method: "factura_electronica.api_erp.journal_entry_isr_purchase_inv",
@@ -490,7 +490,7 @@ function btn_poliza_factura_especial(frm) {
     });
 
     d.show();
-  });
+  }, __("FEL"));
 }
 
 /**
@@ -502,7 +502,7 @@ function btn_debit_note(frm) {
   // INICIO BOTON NOTA DE DEBITO
   cur_frm.clear_custom_buttons();
   frm
-    .add_custom_button(__("GENERAR NOTA DE DEBITO ELECTRONICA FEL"), function () {
+    .add_custom_button(__("Certificar nota de débito en SAT"), function () {
       // Permite hacer confirmaciones
       frappe.confirm(
         __("Are you sure you want to proceed to generate a electronic debit note?"),
@@ -567,13 +567,19 @@ function btn_debit_note(frm) {
  * @param {*} frm
  */
 function pdf_electronic_doc(frm) {
-  frm
-    .add_custom_button(__("VER PDF DOCUMENTO ELECTRONICO"), function () {
-      window.open(
-        "https://report.feel.com.gt/ingfacereport/ingfacereport_documento?uuid=" + frm.doc.numero_autorizacion_fel
-      );
-    })
-    .addClass("btn-primary");
+  frm.add_custom_button(
+    __("PDF del documento"),
+    function () {
+      frappe
+        .call("factura_electronica.fel.print_support.get_fel_pdf_url", {
+          uuid: frm.doc.numero_autorizacion_fel,
+          doctype: frm.doc.doctype,
+          docname: frm.doc.name,
+        })
+        .then((r) => r.message && window.open(r.message));
+    },
+    __("FEL")
+  );
 }
 
 /**
@@ -600,15 +606,15 @@ function clean_fields(frm) {
  * @param {*} frm
  */
 function btn_pi_canceller(frm) {
-  cur_frm.clear_custom_buttons();
-  frm
-    .add_custom_button(__("CANCEL DOCUMENT FEL"), function () {
+  frm.add_custom_button(
+    __("Anular en SAT"),
+    function () {
       // Permite hacer confirmaciones
       frappe.confirm(
-        __("Are you sure to cancel the current electronic document?"),
+        __("¿Anular este documento en SAT? No se puede deshacer."),
         () => {
           let d = new frappe.ui.Dialog({
-            title: __("Cancel electronic document"),
+            title: __("Anular en SAT"),
             fields: [
               {
                 label: __("Reason for cancellation?"),
@@ -643,8 +649,9 @@ function btn_pi_canceller(frm) {
           // console.log('Selecciono NO')
         }
       );
-    })
-    .addClass("btn-danger");
+    },
+    __("FEL")
+  );
 }
 
 /**

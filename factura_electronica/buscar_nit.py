@@ -34,7 +34,8 @@ def buscar_nombre(doc, method):
     """
     if not sat_lookup_enabled():
         return None
-    if getattr(doc, "es_dpi", False) or getattr(doc, "es_pasaporte", False):
+    # CUIs are looked up too (CUI-NIT harmonization); passports have no SAT record.
+    if getattr(doc, "es_pasaporte", False):
         return None
     try:
         result_llave = frappe.db.sql(
@@ -78,3 +79,51 @@ def buscar_nombre(doc, method):
             title="FEL receiver lookup",
         )
         return None
+
+
+def _lookup_credentials(company=None):
+    filters = {"docstatus": 1}
+    if company:
+        filters["company"] = company
+    row = frappe.db.get_value(
+        "Configuracion Factura Electronica", filters, ["alias", "llave_ws", "modo"], as_dict=True
+    )
+    if not row and company:
+        row = frappe.db.get_value(
+            "Configuracion Factura Electronica", {"docstatus": 1}, ["alias", "llave_ws", "modo"], as_dict=True
+        )
+    return row
+
+
+def query_receiver_name(tax_id, alias, llave):
+    """Ask INFILE's receiver service for the name SAT has for a NIT (or CUI)."""
+    payload = json.dumps({"emisor_codigo": alias, "emisor_clave": llave, "nit_consulta": tax_id}).encode("utf-8")
+    request = urllib.request.Request(SAT_RECEIVER_URL, data=payload, headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(request, timeout=SAT_LOOKUP_TIMEOUT) as response:
+        answer = json.loads(response.read().decode("utf-8"))
+    return (answer or {}).get("nombre") or None
+
+
+@frappe.whitelist()
+def lookup_receiver(tax_id, company=None):
+    """Name registered at SAT for a NIT or CUI, for the Customer / Sales Invoice forms.
+
+    Returns {"name": ...}, {"name": None, "reason": ...} when it cannot ask (Demo mode,
+    no credentials, consumidor final) or the service has no answer. Never raises:
+    the form keeps working when the service is down. CUIs are sent as they are: since
+    the CUI-NIT harmonization the service is expected to accept them; this is
+    confirmed against INFILE when the client's credentials are available.
+    """
+    clean = str(tax_id or "").replace("-", "").replace(" ", "").upper()
+    if not clean or clean in ("CF", "C/F", "CONSUMIDORFINAL"):
+        return {"name": None, "reason": "cf"}
+    row = _lookup_credentials(company)
+    if row and row.modo == "Demo":
+        return {"name": None, "reason": "demo"}
+    if not row or not row.alias or not row.llave_ws:
+        return {"name": None, "reason": "no_credentials"}
+    try:
+        return {"name": query_receiver_name(clean, row.alias, row.llave_ws)}
+    except Exception as exc:
+        frappe.log_error(message="FEL receiver lookup failed: {0}".format(exc), title="FEL receiver lookup")
+        return {"name": None, "reason": "unavailable"}

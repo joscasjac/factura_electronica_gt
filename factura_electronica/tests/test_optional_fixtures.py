@@ -112,6 +112,10 @@ class TestOptionalFixtures(unittest.TestCase):
             self.assertNotIn("modified", field)
 
     def test_sync_does_not_create_fields_when_tables_are_missing(self):
+        # Patches are scoped: under bench this module shares the real frappe with every
+        # other test, and the old global assignments broke the suites that ran after it.
+        from unittest import mock
+
         import frappe
 
         created = []
@@ -119,12 +123,14 @@ class TestOptionalFixtures(unittest.TestCase):
         def fail_import(*args, **kwargs):
             created.append("imported")
 
-        frappe.db.table_exists = lambda doctype: False
-        frappe.get_installed_apps = lambda: ["hrms", "healthcare"]
         custom = types.ModuleType("frappe.custom.doctype.custom_field.custom_field")
         custom.create_custom_fields = fail_import
-        sys.modules["frappe.custom.doctype.custom_field.custom_field"] = custom
-        sync_optional_fixtures()
+        db = getattr(frappe, "db", None)
+        with mock.patch.object(frappe, "db", types.SimpleNamespace(table_exists=lambda doctype: False)), \
+                mock.patch.object(frappe, "get_installed_apps", lambda *a, **k: ["hrms", "healthcare"], create=True), \
+                mock.patch.dict(sys.modules, {"frappe.custom.doctype.custom_field.custom_field": custom}):
+            sync_optional_fixtures()
+        self.assertIs(getattr(frappe, "db", None), db)
         self.assertEqual(created, [])
 
 

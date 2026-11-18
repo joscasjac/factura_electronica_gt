@@ -15,7 +15,6 @@ function clean_fields(frm) {
   // Funcionalidad evita copiar CAE cuando se duplica una factura
   // LIMPIA/CLEAN, permite limpiar los campos cuando se duplica una factura
   if (frm.doc.status === "Draft" || frm.doc.docstatus == 0) {
-    console.log("LImpiando campos");
     frm.set_value("cae_factura_electronica", "");
     frm.set_value("serie_original_del_documento", "");
     frm.set_value("numero_autorizacion_fel", "");
@@ -67,19 +66,8 @@ function sales_invoice_calc(frm) {
     args: {
       invoice_name: frm.doc.name,
     },
-    freeze: true,
-    freeze_message: __("Calculating") + " 📄📄📄",
-    callback: (r) => {
-      frm.reload_doc();
-      // console.log("Sales Invoice Calculated", r.message);
-      // frm.save();
-    },
-    error: (r) => {
-      // on error
-      console.log("Sales Invoice Calculated Error");
-    },
+    callback: () => frm.reload_doc(),
   });
-  frm.reload_doc();
 }
 
 /**
@@ -131,7 +119,7 @@ function btn_generator(frm) {
       }
 
       // SI APLICA EL ESCENARIO MUESTRA EL BOTON PARA Generación Facturas Electrónicas FEL - Normal Type
-      if (r.message[0] === "FACT" && r.message[2]) {
+      if ((r.message[0] === "FACT" || r.message[0] === "FPEQ") && r.message[1] !== "export" && r.message[2]) {
         generar_boton_factura(__("Factura Electrónica FEL"), frm);
         if (frm.doc.numero_autorizacion_fel) {
           cur_frm.clear_custom_buttons();
@@ -166,7 +154,16 @@ function btn_generator(frm) {
       }
 
       // SI APLICA EL ESCENARIO MUESTRA EL BOTON PARA  Generación Factura Cambiaria
-      if (r.message[0] === "FCAM" && r.message[1] === "valido" && r.message[2]) {
+      // Nota de Débito de venta (Sales Invoice con is_debit_note)
+      if (r.message[0] === "NDEB" && r.message[1] === "valido" && r.message[2] && frm.doc.is_debit_note) {
+        btn_sales_debit_note(frm);
+        if (frm.doc.numero_autorizacion_fel) {
+          cur_frm.clear_custom_buttons();
+          pdf_button_fel(frm.doc.numero_autorizacion_fel, frm);
+        }
+      }
+
+      if ((r.message[0] === "FCAM" || r.message[0] === "FCAP") && r.message[1] === "valido" && r.message[2]) {
         btn_exchange_invoice(frm);
         if (frm.doc.numero_autorizacion_fel) {
           cur_frm.clear_custom_buttons();
@@ -532,12 +529,16 @@ function btn_exempt_invoice(frm) {
  * @param {*} frm
  */
 function btn_journal_entry_retention(frm) {
-  cur_frm.page.add_action_item(__("AUTOMATED RETENTION"), function () {
+  frm.page.add_action_item(__("Cobro con retención ISR / IVA"), () => btn_journal_entry_retention_dialog(frm));
+}
+
+function btn_journal_entry_retention_dialog(frm) {
+  {
     let d = new frappe.ui.Dialog({
-      title: __("New Journal Entry with Withholding Tax"),
+      title: __("Cobro con retención ISR / IVA"),
       fields: [
         {
-          label: "Cost Center",
+          label: __("Centro de costo"),
           fieldname: "cost_center",
           fieldtype: "Link",
           options: "Cost Center",
@@ -551,7 +552,7 @@ function btn_journal_entry_retention(frm) {
           default: "",
         },
         {
-          label: "Target account",
+          label: __("Cuenta de cobro (banco o caja)"),
           fieldname: "debit_in_acc_currency",
           fieldtype: "Link",
           options: "Account",
@@ -569,41 +570,47 @@ function btn_journal_entry_retention(frm) {
           fieldtype: "Column Break",
         },
         {
-          label: "Is Multicurrency",
+          label: __("Multimoneda"),
           fieldname: "is_multicurrency",
           fieldtype: "Check",
         },
         {
-          label: "Applies for VAT withholding",
+          label: __("El cliente retiene IVA"),
           fieldname: "is_iva_withholding",
           fieldtype: "Check",
         },
         {
-          label: "Applies for ISR withholding",
+          label: __("Porcentaje de IVA retenido"),
+          fieldname: "iva_retention_rate",
+          fieldtype: "Percent",
+          default: 15,
+          depends_on: "eval:doc.is_iva_withholding",
+        },
+        {
+          label: __("El cliente retiene ISR"),
           fieldname: "is_isr_withholding",
           fieldtype: "Check",
         },
         {
-          label: "NOTE",
+          label: __("Nota"),
           fieldname: "note",
           fieldtype: "Data",
           read_only: 1,
-          default:
-            "Los cálculos se realizaran correctamente si se encuentran configurados en company, y si el IVA va incluido en la factura",
+          default: __("Usa los rangos de retención de la empresa; el IVA debe venir incluido en la factura."),
         },
         {
-          label: "Description",
+          label: __("Descripción"),
           fieldname: "section_asdads",
           fieldtype: "Section Break",
           collapsible: 1,
         },
         {
-          label: "Description",
+          label: __("Descripción"),
           fieldname: "description",
           fieldtype: "Long Text",
         },
       ],
-      primary_action_label: "Create",
+      primary_action_label: __("Crear partida"),
       primary_action(values) {
         frappe.call({
           method: "factura_electronica.api_erp.journal_entry_isr",
@@ -615,9 +622,9 @@ function btn_journal_entry_retention(frm) {
             is_iva_ret: parseInt(values.is_iva_withholding),
             is_multicurrency: parseInt(values.is_multicurrency),
             description: values.description,
+            iva_retention_rate: values.iva_retention_rate,
           },
           callback: function (r) {
-            // console.log(r.message);
             d.hide();
             frm.refresh();
           },
@@ -625,7 +632,7 @@ function btn_journal_entry_retention(frm) {
       },
     });
     d.show();
-  });
+  }
 }
 
 /**
@@ -674,7 +681,7 @@ function pdf_button_fel(cae_documento, frm) {
   // aplica para fel, y anuladas
   frm
     .add_custom_button(__("VER PDF DOCUMENTO ELECTRÓNICO"), function () {
-      window.open("https://report.feel.com.gt/ingfacereport/ingfacereport_documento?uuid=" + cae_documento);
+      open_fel_pdf(cae_documento, frm);
     })
     .addClass("btn-primary");
 }
@@ -688,9 +695,7 @@ function pdf_credit_note(frm) {
   cur_frm.clear_custom_buttons();
   frm
     .add_custom_button(__("VER PDF NOTA CREDITO ELECTRONICA"), function () {
-      window.open(
-        "https://report.feel.com.gt/ingfacereport/ingfacereport_documento?uuid=" + frm.doc.numero_autorizacion_fel
-      );
+      open_fel_pdf(frm.doc.numero_autorizacion_fel, frm);
     })
     .addClass("btn-primary");
 }
@@ -704,12 +709,127 @@ function pdf_nota_abono(frm) {
   cur_frm.clear_custom_buttons();
   frm
     .add_custom_button(__("VER PDF NOTA ABONO ELECTRONICA"), function () {
-      window.open(
-        "https://report.feel.com.gt/ingfacereport/ingfacereport_documento?uuid=" + frm.doc.numero_autorizacion_fel
-      );
+      open_fel_pdf(frm.doc.numero_autorizacion_fel, frm);
     })
     .addClass("btn-primary");
 }
+/**
+ * @summary Abre el PDF del documento certificado según el certificador de la configuración
+ * (INFILE: su visor; DIGIFACT: PDF adjunto al Envío FEL; Demo/otros: formato de impresión FEL).
+ */
+function open_fel_pdf(uuid, frm) {
+  frappe
+    .call("factura_electronica.fel.print_support.get_fel_pdf_url", {
+      uuid: uuid,
+      doctype: frm.doc.doctype,
+      docname: frm.doc.name,
+    })
+    .then((r) => {
+      if (r.message) window.open(r.message);
+    });
+}
+
+/**
+ * @summary Botón Nota de Débito FEL para Sales Invoice con is_debit_note
+ */
+function btn_sales_debit_note(frm) {
+  cur_frm.clear_custom_buttons();
+  frm
+    .add_custom_button(__("NOTA DE DÉBITO FEL"), function () {
+      let d = new frappe.ui.Dialog({
+        title: __("Nota de Débito Electrónica"),
+        fields: [
+          {
+            label: __("Motivo del ajuste"),
+            fieldname: "reason",
+            fieldtype: "Data",
+            reqd: 1,
+          },
+        ],
+        primary_action_label: __("Generar"),
+        primary_action(values) {
+          let serie_de_factura = frm.doc.name;
+          let mi_url = window.location.href;
+          frappe.call({
+            method: "factura_electronica.fel_api.generate_sales_debit_note",
+            args: {
+              invoice_code: frm.doc.name,
+              naming_series: frm.doc.naming_series,
+              reference_inv: frm.doc.return_against,
+              reason: values.reason,
+            },
+            freeze: true,
+            callback: function (data) {
+              d.hide();
+              if (data.message && data.message[0] === true) {
+                window.location.assign(mi_url.replace(serie_de_factura, data.message[1]));
+              } else if (data.message) {
+                frappe.msgprint({ title: __("Nota de Débito FEL"), message: data.message[1], indicator: "red" });
+              }
+            },
+          });
+        },
+      });
+      d.show();
+    })
+    .addClass("btn-primary");
+}
+
+/**
+ * @summary NumeroAcceso SAT (100000000-999999999) de un registro Access Number FCAM (FCAM-000000007)
+ */
+function sat_access_number(record_name) {
+  if (!record_name) return "";
+  const sequence = parseInt(String(record_name).split("-").pop(), 10);
+  if (isNaN(sequence)) return record_name;
+  return String(sequence >= 100000000 ? sequence : 100000000 + sequence);
+}
+
+/**
+ * @summary Venta al crédito con serie de Factura: sugiere la serie de Factura Cambiaria
+ */
+function suggest_exchange_invoice(frm) {
+  if (frm.doc.docstatus !== 0 || !frm.doc.company || !frm.doc.naming_series) return;
+  frappe
+    .call("factura_electronica.fel.print_support.suggest_exchange_series", {
+      company: frm.doc.company,
+      naming_series: frm.doc.naming_series,
+      posting_date: frm.doc.posting_date,
+      due_date: frm.doc.due_date,
+    })
+    .then((r) => {
+      if (!r.message) return;
+      frm.dashboard.clear_headline();
+      frm.dashboard.set_headline_alert(
+        __("Venta al crédito: puede emitirla como Factura Cambiaria (serie {0}).", [r.message]) +
+          ` <a href="#" role="button" class="fel-use-fcam" data-series="${frappe.utils.escape_html(r.message)}">${__("Usar serie {0}", [
+            r.message,
+          ])}</a>`,
+        "blue"
+      );
+    });
+}
+
+// Delegated: the headline is rendered outside frm.dashboard.wrapper.
+$(document).on("click", ".fel-use-fcam", function (event) {
+  event.preventDefault();
+  const frm = cur_frm;
+  const series = $(this).attr("data-series");
+  if (!frm || !series) return;
+  frm.dashboard.clear_headline();
+  if (frm.is_new()) {
+    frm.set_value("naming_series", series);
+    return;
+  }
+  // A saved draft: naming_series is set only once in the form, so change it on the server.
+  frappe
+    .call("factura_electronica.fel.print_support.use_exchange_series", { invoice: frm.doc.name, series: series })
+    .then(() => {
+      frm.reload_doc();
+      frappe.show_alert({ message: __("Serie cambiada a {0}.", [series]), indicator: "green" });
+    });
+});
+
 /**
  * @summary Valida que existan los datos minimos necesarios para realizar calculos correctamente
  * @param {Object} frm
@@ -720,12 +840,10 @@ function dependency_validator(frm) {
     // Muestra una notificacion para cargar una tabla de impuestos
     frappe.show_alert(
       {
-        message: __(
-          "Tabla de impuestos no se encuentra cargada, por favor agregarla para que los calculos se generen correctamente"
-        ),
-        indicator: "red",
+        message: __("Falta la plantilla de impuestos: agréguela para que el IVA se calcule bien."),
+        indicator: "orange",
       },
-      400
+      8
     );
   }
 }
@@ -748,13 +866,21 @@ frappe.ui.form.on("Sales Invoice", {
   },
   // Se ejecuta despues de guardar el doctype
   after_save: function (frm, cdt, cdn) {
-    sales_invoice_calc(frm);
+    // Only drafts: after submit the document is read-only (and FEL may have renamed it).
+    if (frm.doc.docstatus === 0) sales_invoice_calc(frm);
   },
   // Se ejecuta cuando hay alguna actualizacion de datos en el doctype
   refresh: function (frm, cdt, cdn) {
-    if (frm.doc.docstatus != 0) {
-      btn_generator(frm);
-    }
+    // One status line, one primary action and one "FEL" menu (fel_refresh).
+    // The old per-type buttons (btn_generator) are no longer shown.
+    fel_refresh(frm);
+    if (frm.doc.docstatus === 0) suggest_exchange_invoice(frm);
+  },
+  due_date: function (frm) {
+    suggest_exchange_invoice(frm);
+  },
+  payment_terms_template: function (frm) {
+    suggest_exchange_invoice(frm);
   },
   // Se ejecuta al presionar el boton guardar
   validate: function (frm, cdt, cdn) {
@@ -766,8 +892,15 @@ frappe.ui.form.on("Sales Invoice", {
   before_save: function (frm, cdt, cdn) {},
   // Se ejecuta al validar el documento
   on_submit: function (frm, cdt, cdn) {
-    // Ocurre cuando se presione el boton validar.
-    special_tax(frm);
+    if (frm.__fel && frm.__fel.certify_on_submit) {
+      // The server posted the special-tax entries and certified after the submit.
+      fel_after_server_step(frm);
+    } else {
+      special_tax(frm);
+    }
+  },
+  after_cancel: function (frm) {
+    if (frm.__fel && frm.__fel.annul_on_cancel) fel_after_server_step(frm);
   },
   naming_series: function (frm, cdt, cdn) {
     // Aplica solo para FS
@@ -833,3 +966,309 @@ frappe.ui.form.on("Sales Invoice Item", {
     frm.refresh_field("items");
   },
 });
+/**
+ * Copyright (c) 2026 QuestFlows and contributors
+ * FEL on the Sales Invoice form: one status line, one primary action, one "FEL" menu,
+ * and a single confirmation when submitting (certify) or cancelling (annul).
+ * Server side: factura_electronica.fel.auto.
+ */
+
+const FEL_GROUP = __("FEL");
+
+function fel_call(method, args) {
+  return frappe.call({ method: "factura_electronica.fel.auto." + method, args: args }).then((r) => r.message);
+}
+
+function fel_money(ctx) {
+  return format_currency(ctx.total, ctx.currency);
+}
+
+function fel_datetime(value) {
+  if (!value) return "";
+  // "2026-11-18T08:21:55-06:00" -> user's date format and HH:mm
+  const text = String(value).replace("T", " ").slice(0, 16);
+  return frappe.datetime.str_to_user(text);
+}
+
+/** Status line in the form headline. */
+function fel_headline(frm, ctx) {
+  frm.dashboard.clear_headline();
+  if (!ctx || !ctx.fel) return;
+  const esc = frappe.utils.escape_html;
+  const demo = ctx.mode === "Demo";
+  let text, color;
+  if (ctx.anulada) {
+    text = __("{0} anulada en SAT.", [esc(ctx.label)]);
+    color = "gray";
+  } else if (ctx.cancelled) {
+    text = __("Cancelada en ERPNext pero vigente en SAT: anúlela con FEL › Anular en SAT.");
+    color = "red";
+  } else if (ctx.certified) {
+    text = __("{0} certificada · Serie {1} Número {2} · {3}", [
+      esc(ctx.label),
+      esc(ctx.serie || ""),
+      esc(ctx.numero || ""),
+      esc(fel_datetime(ctx.fecha)),
+    ]);
+    if (ctx.original) text += " · " + __("número interno {0}", [esc(ctx.original)]);
+    color = "green";
+  } else if (ctx.contingency) {
+    text = __("Emitida en contingencia (número de acceso {0}). Se reintenta certificar cada hora.", [
+      esc(sat_access_number(frm.doc.access_number_fel)),
+    ]);
+    color = "orange";
+  } else if (frm.doc.docstatus === 1) {
+    text = __("{0} pendiente de certificar en SAT.", [esc(ctx.label)]);
+    color = "orange";
+  } else {
+    return; // drafts: the submit dialog explains what will happen
+  }
+  if (demo && !ctx.anulada) {
+    text += " " + __("Modo Demo: no se envió a SAT y no tiene validez fiscal.");
+    color = color === "green" ? "orange" : color;
+  }
+  frm.dashboard.set_headline_alert(text, color);
+}
+
+/** Primary action + "FEL" menu for the document's state. */
+function fel_actions(frm, ctx) {
+  if (!ctx || !ctx.fel) return;
+  const certified = ctx.certified && !ctx.anulada;
+  if (frm.doc.docstatus === 1 && !ctx.certified) {
+    const label = ctx.contingency ? __("Reintentar certificación") : __("Certificar en SAT");
+    frm.add_custom_button(label, () => fel_certify(frm)).addClass("btn-primary");
+  }
+  if (ctx.certified) {
+    frm.add_custom_button(__("PDF del documento"), () => open_fel_pdf(ctx.uuid, frm), FEL_GROUP);
+  }
+  if (frm.doc.docstatus === 1 && certified && !frm.doc.is_return && !frm.doc.is_debit_note) {
+    frm.add_custom_button(__("Nota de crédito"), () => fel_make_note(frm, "credit"), FEL_GROUP);
+    frm.add_custom_button(__("Nota de débito"), () => fel_make_note(frm, "debit"), FEL_GROUP);
+    if (frm.doc.outstanding_amount > 0) {
+      frm.add_custom_button(__("Cobro con retención ISR / IVA"), () => btn_journal_entry_retention_dialog(frm), FEL_GROUP);
+    }
+  }
+  if (ctx.cancelled && !ctx.anulada) {
+    frm.add_custom_button(__("Anular en SAT"), () => fel_annul_dialog(frm, ctx), FEL_GROUP);
+  }
+}
+
+function fel_certify(frm) {
+  frappe.dom.freeze(__("Certificando en SAT…"));
+  fel_call("certify_invoice", { invoice: frm.doc.name })
+    .then((result) => fel_after_certify(frm, result))
+    .finally(() => frappe.dom.unfreeze());
+}
+
+function fel_after_certify(frm, result) {
+  if (!result) return;
+  if (result.ok) {
+    frappe.show_alert({ message: result.message || __("Certificada en SAT"), indicator: "green" });
+    if (result.name && result.name !== frm.doc.name) {
+      frappe.set_route("Form", "Sales Invoice", result.name);
+    } else {
+      frm.reload_doc();
+    }
+    return;
+  }
+  frappe.msgprint({
+    title: result.contingency ? __("Factura en contingencia") : __("No se pudo certificar"),
+    indicator: result.contingency ? "orange" : "red",
+    message: frappe.utils.escape_html(result.message || ""),
+  });
+  frm.reload_doc();
+}
+
+function fel_make_note(frm, kind) {
+  if (kind === "credit") {
+    // ERPNext's return; its FEL series (NCRE) is chosen when it is saved.
+    frappe.model.open_mapped_doc({
+      method: "erpnext.accounts.doctype.sales_invoice.sales_invoice.make_sales_return",
+      frm: frm,
+    });
+    return;
+  }
+  frappe.new_doc("Sales Invoice", {
+    company: frm.doc.company,
+    customer: frm.doc.customer,
+    currency: frm.doc.currency,
+    is_debit_note: 1,
+    return_against: frm.doc.name,
+  });
+}
+
+/** Summary shown instead of "Permanently submit?" when submitting certifies in SAT. */
+function fel_submit_dialog(frm, ctx) {
+  return new Promise((resolve) => {
+    const esc = frappe.utils.escape_html;
+    const rows = [
+      [__("Documento"), esc(ctx.label)],
+      [__("Receptor"), esc(ctx.receptor || "") + " · NIT " + esc(ctx.nit || "CF")],
+      [__("Total"), esc(fel_money(ctx))],
+    ];
+    const fields = [
+      {
+        fieldtype: "HTML",
+        fieldname: "summary",
+        options:
+          `<table class="table table-bordered table-sm" style="margin-bottom:8px">` +
+          rows.map((r) => `<tr><th style="width:30%">${r[0]}</th><td>${r[1]}</td></tr>`).join("") +
+          `</table>` +
+          (ctx.mode === "Demo"
+            ? `<p class="text-warning">${__(
+                "Modo Demo: se valida contra los esquemas de SAT pero no se envía; no tiene validez fiscal."
+              )}</p>`
+            : `<p class="text-muted">${__(
+                "Al validar se envía a SAT. Solo se puede revertir anulándola en SAT."
+              )}</p>`),
+      },
+    ];
+    if (ctx.needs_reason) {
+      fields.push({
+        fieldtype: "Data",
+        fieldname: "reason",
+        label: __("Motivo del ajuste"),
+        reqd: 1,
+        default: frm.doc.fel_motivo_ajuste || "",
+        description: __("Aparece en el documento que recibe el cliente."),
+      });
+    }
+    let done = false;
+    const d = new frappe.ui.Dialog({
+      title: ctx.mode === "Demo" ? __("Validar (modo Demo)") : __("Validar y certificar en SAT"),
+      fields: fields,
+      primary_action_label: __("Validar y certificar"),
+      primary_action(values) {
+        done = true;
+        d.hide();
+        resolve(values);
+      },
+      secondary_action_label: __("Volver"),
+      secondary_action() {
+        d.hide();
+      },
+      on_hide() {
+        if (!done) resolve(null);
+      },
+    });
+    d.show();
+  });
+}
+
+/** Reason dialog shown instead of "Permanently cancel?" for certified invoices. */
+function fel_cancel_dialog(frm, ctx, title) {
+  return new Promise((resolve) => {
+    let done = false;
+    const d = new frappe.ui.Dialog({
+      title: title || __("Cancelar y anular en SAT"),
+      fields: [
+        {
+          fieldtype: "HTML",
+          fieldname: "note",
+          options: `<p>${__("La {0} {1} se anulará en SAT con este motivo. No se puede deshacer.", [
+            frappe.utils.escape_html(ctx.label),
+            frappe.utils.escape_html((ctx.serie || "") + " " + (ctx.numero || "")),
+          ])}</p>`,
+        },
+        { fieldtype: "Data", fieldname: "reason", label: __("Motivo de anulación"), reqd: 1 },
+      ],
+      primary_action_label: __("Anular"),
+      primary_action(values) {
+        done = true;
+        d.hide();
+        resolve(values);
+      },
+      secondary_action_label: __("Volver"),
+      secondary_action() {
+        d.hide();
+      },
+      on_hide() {
+        if (!done) resolve(null);
+      },
+    });
+    d.show();
+  });
+}
+
+function fel_annul_dialog(frm, ctx) {
+  fel_cancel_dialog(frm, ctx, __("Anular en SAT")).then((values) => {
+    if (!values) return;
+    frappe.dom.freeze(__("Anulando en SAT…"));
+    fel_call("annul_invoice", { invoice: frm.doc.name, reason: values.reason })
+      .then((r) => {
+        frappe.show_alert({ message: r.message, indicator: r.ok ? "green" : "red" });
+        frm.reload_doc();
+      })
+      .finally(() => frappe.dom.unfreeze());
+  });
+}
+
+/** Run Frappe's own submit/cancel without its generic confirm (our dialog replaced it). */
+function fel_without_confirm(fn) {
+  // Frappe asks "Permanently submit / cancel?" after its own server checks (linked
+  // documents), so the one-time bypass stays armed until that confirm is requested,
+  // with a safety restore in case the flow stops before asking.
+  const original = frappe.confirm;
+  const restore = () => {
+    if (frappe.confirm === bypass) frappe.confirm = original;
+  };
+  const bypass = function (message, yes) {
+    frappe.confirm = original;
+    yes && yes();
+  };
+  frappe.confirm = bypass;
+  setTimeout(restore, 15000);
+  try {
+    return fn();
+  } catch (e) {
+    restore();
+    throw e;
+  }
+}
+
+function fel_install_overrides(frm) {
+  if (frm.__fel_overrides) return;
+  frm.__fel_overrides = true;
+  const original_submit = frm.savesubmit.bind(frm);
+  const original_cancel = frm.savecancel.bind(frm);
+
+  frm.savesubmit = function (btn, callback, on_error) {
+    const ctx = frm.__fel;
+    if (!ctx || !ctx.fel || !ctx.certify_on_submit) return original_submit(btn, callback, on_error);
+    return fel_submit_dialog(frm, ctx).then((values) => {
+      if (!values) return;
+      if (values.reason) frm.doc.fel_motivo_ajuste = values.reason;
+      return fel_without_confirm(() => original_submit(btn, callback, on_error));
+    });
+  };
+
+  frm.savecancel = function (btn, callback, on_error) {
+    const ctx = frm.__fel;
+    if (!ctx || !ctx.certified || ctx.anulada || !ctx.annul_on_cancel) return original_cancel(btn, callback, on_error);
+    return fel_cancel_dialog(frm, ctx).then((values) => {
+      if (!values) return;
+      return fel_call("set_cancel_reason", { invoice: frm.doc.name, reason: values.reason }).then(() =>
+        fel_without_confirm(() => original_cancel(btn, callback, on_error))
+      );
+    });
+  };
+}
+
+/** After a submit or cancel that ran the FEL automation on the server. */
+function fel_after_server_step(frm) {
+  fel_call("submit_result", { invoice: frm.doc.name }).then((result) => {
+    if (result) fel_after_certify(frm, result);
+  });
+}
+
+function fel_refresh(frm) {
+  if (frm.is_new()) return;
+  fel_call("form_context", { invoice: frm.doc.name }).then((ctx) => {
+    frm.__fel = ctx;
+    if (!ctx || !ctx.fel) return;
+    fel_install_overrides(frm);
+    fel_headline(frm, ctx);
+    fel_actions(frm, ctx);
+  });
+}
+

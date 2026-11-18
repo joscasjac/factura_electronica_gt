@@ -183,6 +183,8 @@ def get_conditions(filters):
         conditions.append("posting_date >=%(from_date)s")
 
     conditions.append("(posting_date <=%(to_date)s or is_opening = 'Yes')")
+    # v13+: cancelled vouchers keep their GL Entries flagged is_cancelled
+    conditions.append("is_cancelled = 0")
 
     if filters.get("project"):
         conditions.append("project in %(project)s")

@@ -17,6 +17,7 @@ from frappe.utils import cint, flt, get_datetime, nowdate, nowtime
 from factura_electronica.utils.fel_datetime import MODE_CREACION, get_fecha_hora_emision
 from factura_electronica.utils.fel_frases import ensure_late_origin_frase
 from factura_electronica.utils.utilities_facelec import get_currency_precision, remove_html_tags
+from factura_electronica.fel.tax_lines import exclude_sumable_taxes, item_taxes, line_impuestos, total_impuestos
 
 # Una nota de crédito es un documento comercial emitido por
 # un vendedor a un comprador. Las notas de crédito actúan como un documento
@@ -497,7 +498,7 @@ class ElectronicCreditNote:
 
             # Obtenemos los items de la factura
             self.__dat_items = frappe.db.get_values('Sales Invoice Item', filters={'parent': str(self.__inv_credit_note)},
-                                             fieldname=['item_name', 'qty', 'item_code', 'description',
+                                             fieldname=['name', 'item_name', 'qty', 'item_code', 'description',
                                                         'net_amount', 'base_net_amount', 'discount_percentage',
                                                         'discount_amount', 'price_list_rate', 'net_rate',
                                                         'stock_uom', 'serial_no', 'item_group', 'rate',
@@ -514,6 +515,8 @@ class ElectronicCreditNote:
             # Obtenemos los impuesto cofigurados para x compañia en la factura
             self.__taxes_fact = frappe.db.get_values('Sales Taxes and Charges', filters={'parent': self.__inv_credit_note},
                                                      fieldname=['tax_name', 'taxable_unit_code', 'rate'], as_dict=True)
+            # v16: per-line taxes as ERPNext posted them (IVA, TURISMO HOSPEDAJE, exempt lines).
+            self.__item_taxes = item_taxes(self.__inv_credit_note, 'Sales Invoice')
 
             # Verificamos la cantidad de items
             longitems = len(self.__dat_items)
@@ -640,6 +643,12 @@ class ElectronicCreditNote:
                         obj_item["dte:Impuestos"]["dte:Impuesto"]["dte:MontoImpuesto"] = abs(flt(self.__dat_items[i]['net_amount'] *
                                                                                                 (self.__taxes_fact[0]['rate']/100), self.__precision))
 
+                        # IVA (o exento) y TURISMO HOSPEDAJE con los montos que ERPNext registró
+                        line_taxes = self.__item_taxes.get(self.__dat_items[i]['name'])
+                        if line_taxes:
+                            obj_item["dte:Impuestos"]["dte:Impuesto"] = line_impuestos(line_taxes, self.__precision)
+                            exclude_sumable_taxes(obj_item, line_taxes, self.__precision)
+
                         obj_item["dte:Total"] = abs(flt(self.__dat_items[i]['amount'], self.__precision))
 
                     apply_oil_tax = False
@@ -684,6 +693,12 @@ class ElectronicCreditNote:
                             "@TotalMontoImpuesto": abs(flt(total_idp, self.__precision))
                         }]
                     },
+                    "dte:GranTotal": abs(flt(self.dat_fac[0]['grand_total'], self.__precision))
+                }
+            # IVA (+ TURISMO HOSPEDAJE): totales sumados de las mismas líneas
+            elif self.__item_taxes:
+                self.__d_totales = {
+                    "dte:TotalImpuestos": {"dte:TotalImpuesto": total_impuestos(self.__d_items["dte:Item"], self.__precision)},
                     "dte:GranTotal": abs(flt(self.dat_fac[0]['grand_total'], self.__precision))
                 }
             else:

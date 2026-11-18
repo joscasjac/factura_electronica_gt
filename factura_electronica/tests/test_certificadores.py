@@ -302,18 +302,30 @@ class TestCertifierDispatch(unittest.TestCase):
         self.assertIs(resolve_adapter_class(None, "1252133-7"), InfileAdapter)
         self.assertIs(resolve_adapter_class("infile", "12521337"), InfileAdapter)
 
+    def test_digifact_resolves_by_name_and_by_nit(self):
+        from factura_electronica.fel.certifiers.digifact import DigifactAdapter
+
+        self.assertIs(resolve_adapter_class("DIGIFACT", None), DigifactAdapter)
+        self.assertIs(resolve_adapter_class(None, "7745482-0"), DigifactAdapter)
+
+    def test_g4s_resolves_by_name_and_by_nit(self):
+        from factura_electronica.fel.certifiers.g4s import G4SAdapter
+
+        self.assertIs(resolve_adapter_class("G4S", None), G4SAdapter)
+        self.assertIs(resolve_adapter_class(None, "6001020-7"), G4SAdapter)
+
     def test_other_certifiers_are_not_implemented_yet(self):
-        self.assertIsNone(resolve_adapter_class("DIGIFACT", "77454820"))
-        message = message_not_implemented("DIGIFACT SERVICIOS, S. A.", "77454820")
+        self.assertIsNone(resolve_adapter_class("MEGAPRINT", "50510231"))
+        message = message_not_implemented("MEGAPRINT, S. A.", "50510231")
         self.assertIn("implementado aún", message)
         with patch.object(frappe.db, "exists", return_value=True), patch.object(
             frappe.db, "get_value", return_value={
-                "nit": "77454820",
-                "razon_social": "DIGIFACT SERVICIOS, S. A.",
+                "nit": "50510231",
+                "razon_social": "MEGAPRINT, S. A.",
             }
         ):
             with self.assertRaises(Exception) as raised:
-                get_adapter("DIGIFACT")
+                get_adapter("MEGAPRINT")
         self.assertIn("implementado aún", str(raised.exception))
 
 

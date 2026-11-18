@@ -39,7 +39,8 @@ def batch_generator_api(invoices):
 
 @frappe.whitelist()
 def journal_entry_isr(invoice_name, debit_in_acc_currency, cost_center='',
-                      is_isr_ret=0, is_iva_ret=0, is_multicurrency=0, description=''):
+                      is_isr_ret=0, is_iva_ret=0, is_multicurrency=0, description='',
+                      iva_retention_rate=None):
     """
     Funcion llamada desde boton Actions en Sales Invoice, encargada de crear Journal
     Entry con retencion de impuestos, en funcion a los parametros
@@ -74,7 +75,8 @@ def journal_entry_isr(invoice_name, debit_in_acc_currency, cost_center='',
 
         # Nueva instancia de la clase y aplicamos el metodo de crear
         new_je = JournalEntrySaleInvoice(sales_invoice_info, int(is_isr_ret), int(is_iva_ret),
-                                         debit_in_acc_currency, is_multicurrency, cost_center, description).create()
+                                         debit_in_acc_currency, is_multicurrency, cost_center, description,
+                                         iva_retention_rate=iva_retention_rate).create()
 
         # si hay problema al crear la poliza
         if new_je[0] == False:

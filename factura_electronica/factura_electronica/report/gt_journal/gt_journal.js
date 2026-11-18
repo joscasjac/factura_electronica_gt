@@ -27,7 +27,7 @@ frappe.query_reports["GT Journal"] = {
             "label":__("From Date"),
             "fieldtype":"Date",
             // "options":"",
-            "default":frappe.datetime.add_months(frappe.datetime.get_today(), -1),
+            "default":frappe.datetime.month_start(frappe.datetime.add_months(frappe.datetime.get_today(), -1)),
             "reqd":1,
             "width":"60px"
         },
@@ -36,7 +36,7 @@ frappe.query_reports["GT Journal"] = {
             "label":__("To Date"),
             "fieldtype":"Date",
             // "options":"",
-            "default":frappe.datetime.get_today(),
+            "default":frappe.datetime.month_end(frappe.datetime.add_months(frappe.datetime.get_today(), -1)),
             "reqd":1,
             "width":"60px"
         },

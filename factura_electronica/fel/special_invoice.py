@@ -17,6 +17,8 @@ from frappe.utils import cint, flt, get_datetime, nowdate, nowtime
 from factura_electronica.utils.fel_datetime import get_fecha_hora_emision
 from factura_electronica.utils.formulas import apply_formula_isr
 from factura_electronica.utils.utilities_facelec import get_currency_precision, remove_html_tags
+from factura_electronica.utils.supplier_cui import supplier_cui_from_tax_id
+from factura_electronica.fel.tax_lines import exclude_sumable_taxes, item_taxes, line_impuestos, total_impuestos
 
 # La contenida en el artículo 52 se refiere al documento que utiliza y emite
 # el comprador cuando adquiere bienes o servicios de personas individuales que
@@ -281,6 +283,11 @@ class ElectronicSpecialInvoice:
             contact_per = frappe.db.get_values('Contact Identification', filters={'parent': self.dat_fac[0]['contact_person'],
                                                                                   'id_prefix': 'DPI'},
                                                fieldname=['id_number'], as_dict=1)
+            if not contact_per:
+                # Fallback: the supplier's own Tax ID when it is a 13-digit CUI (DPI).
+                supplier_cui = supplier_cui_from_tax_id(self.dat_fac[0].get('supplier'))
+                if supplier_cui:
+                    contact_per = [{'id_number': supplier_cui}]
 
             datos_default = {
                 'email': frappe.db.get_value('Configuracion Factura Electronica',  {'name': self.__config_name}, 'correo_copia'),
@@ -460,7 +467,7 @@ class ElectronicSpecialInvoice:
 
             # Obtenemos los items de la factura
             self.__dat_items = frappe.db.get_values('Purchase Invoice Item', filters={'parent': str(self.__invoice_code)},
-                                             fieldname=['item_name', 'qty', 'item_code', 'description',
+                                             fieldname=['name', 'item_name', 'qty', 'item_code', 'description',
                                                         'net_amount', 'base_net_amount', 'discount_percentage',
                                                         'discount_amount', 'price_list_rate', 'net_rate',
                                                         'stock_uom', 'item_group', 'rate', 'amount',
@@ -479,6 +486,8 @@ class ElectronicSpecialInvoice:
             # Obtenemos los impuesto cofigurados para x compañia en la factura
             self.__taxes_fact = frappe.db.get_values('Purchase Taxes and Charges', filters={'parent': self.__invoice_code},
                                                      fieldname=['facelec_tax_name', 'facelec_taxable_unit_code', 'rate'], as_dict=True)
+            # v16: per-line taxes as ERPNext posted them (IVA, TURISMO HOSPEDAJE, exempt lines).
+            self.__item_taxes = item_taxes(self.__invoice_code, 'Purchase Invoice')
             self.iva_rate = self.__taxes_fact[0]['rate']
 
             # Verificamos la cantidad de items
@@ -540,6 +549,12 @@ class ElectronicSpecialInvoice:
                     obj_item["dte:Impuestos"]["dte:Impuesto"]["dte:MontoGravable"] = flt(self.__dat_items[i]['net_amount'], self.__precision)
                     obj_item["dte:Impuestos"]["dte:Impuesto"]["dte:MontoImpuesto"] = flt(self.__dat_items[i]['net_amount'] * (self.__taxes_fact[0]['rate']/100), self.__precision)
 
+                    # IVA (o exento) y TURISMO HOSPEDAJE con los montos que ERPNext registró
+                    line_taxes = self.__item_taxes.get(self.__dat_items[i]['name'])
+                    if line_taxes:
+                        obj_item["dte:Impuestos"]["dte:Impuesto"] = line_impuestos(line_taxes, self.__precision)
+                        exclude_sumable_taxes(obj_item, line_taxes, self.__precision)
+
                     obj_item["dte:Total"] = flt(self.__dat_items[i]['amount'], self.__precision)
 
                     items_ok.append(obj_item)
@@ -566,15 +581,22 @@ class ElectronicSpecialInvoice:
             for i in self.__dat_items:
                 gran_tot += flt(i['facelec_p_sales_tax_for_this_row'], self.__precision)
 
-            self.__d_totales = {
-                "dte:TotalImpuestos": {
-                    "dte:TotalImpuesto": {
-                        "@NombreCorto": self.__taxes_fact[0]['facelec_tax_name'],  #"IVA",
-                        "@TotalMontoImpuesto": flt(gran_tot, self.__precision)
-                    }
-                },
-                "dte:GranTotal": flt(self.dat_fac[0]['grand_total'], self.__precision)
-            }
+            if self.__item_taxes:
+                # Totales sumados de las mismas líneas (ERPNext v16 Item Wise Tax Detail)
+                self.__d_totales = {
+                    "dte:TotalImpuestos": {"dte:TotalImpuesto": total_impuestos(self.__d_items["dte:Item"], self.__precision)},
+                    "dte:GranTotal": flt(self.dat_fac[0]['grand_total'], self.__precision)
+                }
+            else:
+                self.__d_totales = {
+                    "dte:TotalImpuestos": {
+                        "dte:TotalImpuesto": {
+                            "@NombreCorto": self.__taxes_fact[0]['facelec_tax_name'],  #"IVA",
+                            "@TotalMontoImpuesto": flt(gran_tot, self.__precision)
+                        }
+                    },
+                    "dte:GranTotal": flt(self.dat_fac[0]['grand_total'], self.__precision)
+                }
 
             return True, 'OK'
 
@@ -620,10 +642,8 @@ class ElectronicSpecialInvoice:
 
             # Establecemos el numero de retenciones a registrar, guardandola en variable de la clase
             self.list_retentions = [
-                {
-                    'tax': 'ISR',
-                    'retention_amount': ISR
-                }
+                {'tax': 'ISR', 'retention_amount': ISR},
+                {'tax': 'IVA', 'retention_amount': IVA},
             ]
 
             return True, 'OK'
@@ -719,8 +739,9 @@ class ElectronicSpecialInvoice:
                 status_saved = self.save_answers()
 
                 # Al primer error encontrado retornara un detalle con el mismo
-                if status_saved == False:
-                    return False, status_saved
+                if not status_saved[0]:
+                    # save_answers returns (ok, msg); a tuple is never == False
+                    return False, {'status': 'ERROR', 'numero_errores': 1, 'detalles_errores': status_saved[1]}
                     # return {'status': 'ERROR', 'detalles_errores': status_saved, 'numero_errores':1}
 
                 return True, {'status': 'OK', 'numero_autorizacion': self.__response_ok['uuid'],
@@ -841,10 +862,41 @@ class ElectronicSpecialInvoice:
                 # Si los datos se Guardan correctamente, se retornara la serie, que sera capturado por api.py
                 # para luego ser capturado por javascript, se utilizara para recargar la url con los cambios correctos
 
+                # Registra las retenciones ISR / IVA de la factura especial
+                self.record_retention(serieFEL)
+
                 # Se utilizara el UUID como clave para orquestar el resto de las apps que lo necesiten
                 return True, factura_guardada[0]['uuid']
 
-    def record_retention(self):
+    def record_retention(self, invoice_name):
+        """Registra en Tax Retention Guatemala lo retenido al vendedor (ISR e IVA)."""
+        from factura_electronica.controllers.journal_entry import register_withholding
+
+        if frappe.db.exists('Tax Retention Guatemala', {'purchase_invoice': invoice_name}):
+            return True, 'OK'
+        invoice = frappe.db.get_value('Purchase Invoice', invoice_name,
+                                      ['supplier', 'posting_date', 'grand_total', 'currency'], as_dict=True)
+        if not invoice:
+            return False, 'Factura no encontrada'
+        for retention in getattr(self, 'list_retentions', []) or []:
+            if not flt(retention.get('retention_amount')):
+                continue
+            register_withholding({
+                'date': invoice.posting_date,
+                'retention_type': retention.get('tax'),
+                'party_type': 'Supplier',
+                'party': invoice.supplier,
+                'company': self.company,
+                'tax_id': getattr(self, 'nit_proveedor_limpio', ''),
+                'purchase_invoice': invoice_name,
+                'invoice_date': invoice.posting_date,
+                'grand_total': invoice.grand_total,
+                'currency': invoice.currency,
+                'retention_amount': retention.get('retention_amount'),
+            })
+        return True, 'OK'
+
+    def _legacy_record_retention(self):
         pass
         # try:
 

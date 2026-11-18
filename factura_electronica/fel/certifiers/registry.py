@@ -45,7 +45,7 @@ def message_not_implemented(certificador_name, nit=None):
         label = "{0} (NIT {1})".format(certificador_name, nit)
     return _(
         "El certificador {0} no está implementado aún. "
-        "Hoy solo INFILE puede firmar, certificar y anular documentos."
+        "Hoy INFILE, DIGIFACT y G4S pueden firmar, certificar y anular documentos."
     ).format(label)
 
 
@@ -72,8 +72,27 @@ def get_adapter(certificador_name):
     return adapter_cls()
 
 
+MODO_DEMO = "Demo"
+
+
+def config_mode(config_name):
+    """Demo, Pruebas or Producción. Sites without the field behave as before."""
+    if not frappe.get_meta("Configuracion Factura Electronica").has_field("modo"):
+        return None
+    return frappe.db.get_value("Configuracion Factura Electronica", config_name, "modo")
+
+
 def get_adapter_for_config(config_name):
-    """Adaptador de la configuración FEL (vía su Link certificador)."""
+    """Adaptador de la configuración FEL (vía su Link certificador).
+
+    En modo Demo siempre se usa el adaptador Demo, sin importar el certificador:
+    valida contra el esquema SAT y responde como INFILE, sin red ni credenciales.
+    """
+    if config_mode(config_name) == MODO_DEMO:
+        from factura_electronica.fel.certifiers.demo import DemoAdapter
+
+        return DemoAdapter()
+
     certificador = frappe.db.get_value(
         "Configuracion Factura Electronica",
         config_name,

@@ -7,6 +7,7 @@ import base64
 import datetime
 import json
 
+from factura_electronica.fel.contingency import with_access_number
 import frappe
 from factura_electronica.utils.receptor_name import nombre_receptor_for_row
 import urllib.request
@@ -19,6 +20,8 @@ from frappe.utils import cint, flt, get_datetime, nowdate, nowtime
 
 from factura_electronica.utils.fel_datetime import get_fecha_hora_emision
 from factura_electronica.utils.utilities_facelec import get_currency_precision, remove_html_tags
+from factura_electronica.fel.tax_lines import exclude_sumable_taxes, item_taxes, line_impuestos, total_impuestos
+from factura_electronica.fel.tax_lines import items_have_exempt_iva, strip_taxes_for_type, with_exempt_phrase
 
 class ElectronicInvoice:
     def __init__(self, invoice_code, conf_name, naming_series):
@@ -64,7 +67,7 @@ class ElectronicInvoice:
                                 "@ID": "DatosCertificados",
                                 "dte:DatosEmision": {
                                     "@ID": "DatosEmision",
-                                    "dte:DatosGenerales": self.__d_general,
+                                    "dte:DatosGenerales": with_access_number(self.__d_general, self.__invoice_code),
                                     "dte:Emisor": self.__d_emisor,
                                     "dte:Receptor": self.__d_receptor,
                                     "dte:Frases": self.__d_frases,
@@ -478,7 +481,7 @@ class ElectronicInvoice:
 
             # Obtenemos los items de la factura
             self.__dat_items = frappe.db.get_values('Sales Invoice Item', filters={'parent': str(self.__invoice_code)},
-                                             fieldname=['item_name', 'qty', 'item_code', 'description',
+                                             fieldname=['name', 'item_name', 'qty', 'item_code', 'description',
                                                         'net_amount', 'base_net_amount', 'discount_percentage',
                                                         'discount_amount', 'price_list_rate', 'net_rate',
                                                         'stock_uom', 'serial_no', 'item_group', 'rate',
@@ -496,6 +499,8 @@ class ElectronicInvoice:
             # Obtenemos los impuesto cofigurados para x compañia en la factura (IVA)
             self.__taxes_fact = frappe.db.get_values('Sales Taxes and Charges', filters={'parent': self.__invoice_code},
                                                      fieldname=['tax_name', 'taxable_unit_code', 'rate'], as_dict=True)
+            # v16: per-line taxes as ERPNext posted them (IVA, TURISMO HOSPEDAJE, exempt lines).
+            self.__item_taxes = item_taxes(self.__invoice_code, 'Sales Invoice')
 
             # Verificamos la cantidad de items
             longitems = len(self.__dat_items)
@@ -509,15 +514,16 @@ class ElectronicInvoice:
                     obj_item = {}  # por fila
 
                     # Is Service, Is Good.  Si Is Fuel = Is Good. Si Is Exempt = Is Good.
-                    if cint(self.__dat_items[i]['facelec_is_service']) == 1:
+                    # Combustible primero: el campo "servicio" viene marcado por defecto en Item.
+                    if cint(self.__dat_items[i]['factelecis_fuel']) == 1:
+                        obj_item["@BienOServicio"] = 'B'
+                        apply_oil_tax = True
+
+                    elif cint(self.__dat_items[i]['facelec_is_service']) == 1:
                         obj_item["@BienOServicio"] = 'S'
 
                     elif cint(self.__dat_items[i]['facelec_is_good']) == 1:
                         obj_item["@BienOServicio"] = 'B'
-
-                    elif cint(self.__dat_items[i]['factelecis_fuel']) == 1:
-                        obj_item["@BienOServicio"] = 'B'
-                        apply_oil_tax = True
 
                     elif cint(self.__dat_items[i]['facelec_si_is_exempt']) == 1:
                         obj_item["@BienOServicio"] = 'B'
@@ -620,6 +626,12 @@ class ElectronicInvoice:
                         obj_item["dte:Impuestos"]["dte:Impuesto"]["dte:MontoGravable"] = flt(self.__dat_items[i]['net_amount'], self.__precision)  # net_amount
                         obj_item["dte:Impuestos"]["dte:Impuesto"]["dte:MontoImpuesto"] = flt(self.__dat_items[i]['net_amount'] * (self.__taxes_fact[0]['rate']/100), self.__precision)
 
+                        # IVA (o exento) y TURISMO HOSPEDAJE con los montos que ERPNext registró
+                        line_taxes = self.__item_taxes.get(self.__dat_items[i]['name'])
+                        if line_taxes:
+                            obj_item["dte:Impuestos"]["dte:Impuesto"] = line_impuestos(line_taxes, self.__precision)
+                            exclude_sumable_taxes(obj_item, line_taxes, self.__precision)
+
                         obj_item["dte:Total"] = flt(self.__dat_items[i]['amount'], self.__precision)
 
                     # Reseteamos el status
@@ -665,6 +677,12 @@ class ElectronicInvoice:
         """
 
         try:
+
+            # Frase 4 (base legal del exento) cuando alguna línea va exenta de IVA
+
+            if items_have_exempt_iva(self.__d_items["dte:Item"]) and self.__d_general.get("@Tipo") not in ("FPEQ", "FCAP"):
+
+                self.__d_frases = with_exempt_phrase(self.__d_frases, frappe.db.get_value('Configuracion Factura Electronica', self.__config_name, 'codigo_escenario'))
             is_idp = False
             gran_tot = 0
             total_idp = 0
@@ -675,8 +693,15 @@ class ElectronicInvoice:
                     is_idp = True
                     total_idp += flt(i['facelec_other_tax_amount'], self.__precision)
 
-            # Escenario PETROLEO
+            # Escenario PETROLEO: totales sumados de las líneas ya construidas (IVA + PETROLEO,
+            # y TURISMO HOSPEDAJE si hay líneas mixtas)
             if is_idp == True:
+                self.__d_totales = {
+                    "dte:TotalImpuestos": {"dte:TotalImpuesto": total_impuestos(self.__d_items["dte:Item"], self.__precision)},
+                    "dte:GranTotal": flt(self.dat_fac[0]['grand_total'], self.__precision)
+                }
+
+            elif False:
                 self.__d_totales = {
                     "dte:TotalImpuestos": {
                         "dte:TotalImpuesto": [{
@@ -691,7 +716,14 @@ class ElectronicInvoice:
                     "dte:GranTotal": flt(self.dat_fac[0]['grand_total'], self.__precision)
                 }
 
-            # ESCENARIO IVA
+            # ESCENARIO IVA (+ TURISMO HOSPEDAJE): totales sumados de las mismas líneas
+            elif self.__item_taxes:
+                self.__d_totales = {
+                    "dte:TotalImpuestos": {"dte:TotalImpuesto": total_impuestos(self.__d_items["dte:Item"], self.__precision)},
+                    "dte:GranTotal": flt(self.dat_fac[0]['grand_total'], self.__precision)
+                }
+
+            # ESCENARIO IVA (sitios sin Item Wise Tax Detail)
             else:
                 self.__d_totales = {
                     "dte:TotalImpuestos": {
@@ -702,6 +734,9 @@ class ElectronicInvoice:
                     },
                     "dte:GranTotal": flt(self.dat_fac[0]['grand_total'], self.__precision)
                 }
+            # FPEQ / FCAP: sin desglose de IVA
+            self.__d_items["dte:Item"], self.__d_totales = strip_taxes_for_type(
+                self.__d_general.get("@Tipo"), self.__d_items["dte:Item"], self.__d_totales)
             return True, 'OK'
 
         except:
@@ -820,8 +855,9 @@ class ElectronicInvoice:
                 status_saved = self.save_answers()
 
                 # Al primer error encontrado retornara un detalle con el mismo
-                if status_saved == False:
-                    return False, status_saved
+                if not status_saved[0]:
+                    # save_answers returns (ok, msg); a tuple is never == False
+                    return False, {'status': 'ERROR', 'numero_errores': 1, 'detalles_errores': status_saved[1]}
                     # return {'status': 'ERROR', 'detalles_errores': status_saved, 'numero_errores':1}
 
                 return True, {'status': 'OK', 'numero_autorizacion': self.__response_ok['uuid'],
@@ -946,3 +982,5 @@ class ElectronicInvoice:
                         porque se usaron datos default. Haga clic <a href="#List/Address/List"><b>Aquí</b></a> para configurarlo de una vez.'))
                 # Se utilizara el UUID como clave para orquestar el resto de las apps que lo necesiten
                 return True, factura_guardada[0]['uuid']
+
+        return False, f'No se encontró el registro Envio FEL de la factura {self.__invoice_code}; no se renombró.'

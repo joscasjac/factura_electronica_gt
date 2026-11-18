@@ -467,7 +467,7 @@ def process_purchase_invoices(purchase_invoices, filters):
             # Si no hay dato se dejara en blanco, especificar bien esto en manual user
             # Column L: No. de orden de la cédula, DPI o Pasaporte, OK
             contact_name = frappe.db.get_value('Contact', {'address': purchase_invoice.get('invoice_address')}, 'name')
-            ord_doc_entity = frappe.db.get_value('Contact Identification', {'parent': contact_name}, 'ip_prefix') or ""
+            ord_doc_entity = frappe.db.get_value('Contact Identification', {'parent': contact_name}, 'id_prefix') or ""
             purchase_invoice.update({'no_orden_cedula_dpi_pasaporte': ord_doc_entity})
 
             # Coumn M: No. de registro de la cédula, DPI o Pasaporte, OK
@@ -642,7 +642,7 @@ def process_sales_invoices(sales_invoices, filters):
             # Si no hay dato se dejara en blanco, especificar bien esto en manual user
             # Column L: No. de orden de la cédula, DPI o Pasaporte, OK
             contact_name = frappe.db.get_value('Contact', {'address': sales_invoice.get('invoice_address')}, 'name')
-            ord_doc_entity = frappe.db.get_value('Contact Identification', {'parent': contact_name}, 'ip_prefix') or ""
+            ord_doc_entity = frappe.db.get_value('Contact Identification', {'parent': contact_name}, 'id_prefix') or ""
             sales_invoice.update({'no_orden_cedula_dpi_pasaporte': ord_doc_entity})
 
             # Coumn M: No. de registro de la cédula, DPI o Pasaporte, OK

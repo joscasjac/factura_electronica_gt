@@ -142,6 +142,10 @@ class JournalEntrySpecialISR():
                                                                     'vat_retention_to_compensate', 'vat_retention_payable',
                                                                     'income_tax_retention_payable_account'], as_dict=1)
 
+            # Si no hay configurados
+            if not self.retention_ranges:
+                return False, 'No se puede proceder con la operacion, no se encontraron rango de retencion configurados'
+
             # El IVA tendra un valor constante en cada fila
             self.grand_total_sin_iva = monto/((self.retention_ranges[0]['iva_percentage_rate']/100)+1)  # monto / 1.12
 
@@ -167,9 +171,11 @@ class JournalEntrySpecialISR():
                     self.isr_account_payable = retention.get('income_tax_retention_payable_account')
 
                     # Cuenta IVA por pagar
-                    if not retention.get('vat_retention_to_compensate'):
+                    # FESP: el comprador retiene el IVA y lo debe a SAT (pasivo).
+                    iva_account = retention.get('vat_retention_payable') or retention.get('vat_retention_to_compensate')
+                    if not iva_account:
                         return False, 'No se puede proceder con la generacion de poliza contable, no se encontro ninguna cuenta para IVA retencion configurada'
-                    self.iva_account_payable = retention.get('vat_retention_to_compensate')
+                    self.iva_account_payable = iva_account
 
 
                 # Si aplica el escenario. Aplicamos el 7%
@@ -185,9 +191,11 @@ class JournalEntrySpecialISR():
                     self.isr_account_payable = retention.get('income_tax_retention_payable_account')
 
                     # Cuenta IVA por pagar
-                    if not retention.get('vat_retention_to_compensate'):
+                    # FESP: el comprador retiene el IVA y lo debe a SAT (pasivo).
+                    iva_account = retention.get('vat_retention_payable') or retention.get('vat_retention_to_compensate')
+                    if not iva_account:
                         return False, 'No se puede proceder con la generacion de poliza contable, no se encontro ninguna cuenta para IVA retencion configurada'
-                    self.iva_account_payable = retention.get('vat_retention_to_compensate')
+                    self.iva_account_payable = iva_account
 
             return True, 'OK'
 

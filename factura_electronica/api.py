@@ -640,9 +640,8 @@ def generate_access_number(doc, event):
             invoice.reload()
 
             return doc_access.name
-    except:
-        with open("error-camb.txt", "w") as f:
-            f.write(str(frappe.get_traceback()))
+    except Exception:
+        frappe.log_error(title="FCAM access number")
 
 
 @frappe.whitelist()

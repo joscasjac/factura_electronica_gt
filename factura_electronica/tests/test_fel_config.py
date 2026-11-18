@@ -247,6 +247,10 @@ class TestFelConfigOnSite(unittest.TestCase):
                     if doc.docstatus == 1:
                         doc.cancel()
                     frappe.delete_doc(doctype, name, force=1)
+                if doctype == "Company" and frappe.db.table_exists("Expense Claim Account"):
+                    # HRMS adds a default account per company to every Expense Claim Type;
+                    # deleting the company leaves those rows and breaks the next company insert.
+                    frappe.db.delete("Expense Claim Account", {"company": name})
             except Exception:
                 frappe.db.rollback()
         frappe.db.commit()
@@ -433,6 +437,8 @@ class TestFelConfigOnSite(unittest.TestCase):
             "nit_gface": frappe.db.get_value("Company", company_name, "tax_id"),
             "certificador": certificador or self._ensure_infile(),
             "certificador_predeterminado": predeterminado,
+            # Demo is the default mode and never calls the certifier; these tests check INFILE payloads.
+            "modo": "Pruebas",
         })
         config.insert(ignore_permissions=True)
         config.submit()
@@ -453,8 +459,8 @@ class TestFelConfigOnSite(unittest.TestCase):
         from factura_electronica.fel.fel import ElectronicInvoice
         from factura_electronica.fel_api import generate_electronic_invoice, validate_configuration
 
-        company_a = self._make_company("FEL Compania A 315", "FELA", "1111111")
-        company_b = self._make_company("FEL Compania B 315", "FELB", "2222222")
+        company_a = self._make_company("FEL Compania A 315", "FELA", "1111116")
+        company_b = self._make_company("FEL Compania B 315", "FELB", "2222221")
         options = frappe.get_meta("Sales Invoice").get_field("naming_series").options or ""
         series = [line for line in options.split("\n") if line.strip()][0]
         invoice_a = self._make_invoice(company_a.name, series)
@@ -481,6 +487,8 @@ class TestFelConfigOnSite(unittest.TestCase):
         calls = []
 
         class _Response(object):
+            status_code = 200
+
             def __init__(self, payload):
                 self.content = json.dumps(payload).encode("utf-8")
 
@@ -521,8 +529,8 @@ class TestFelConfigOnSite(unittest.TestCase):
         self.assertEqual(dte_calls[1]["headers"]["usuario"], "ALIAS-B")
         self.assertEqual(dte_calls[1]["headers"]["llave"], "LLAVE-WS-B")
         self.assertEqual(dte_calls[1]["headers"]["identificador"], invoice_b.name)
-        self.assertIn("1111111", dte_calls[0]["data"]["nit_emisor"])
-        self.assertIn("2222222", dte_calls[1]["data"]["nit_emisor"])
+        self.assertIn("1111116", dte_calls[0]["data"]["nit_emisor"])
+        self.assertIn("2222221", dte_calls[1]["data"]["nit_emisor"])
 
     def test_two_certifiers_default_and_original_envio_routing(self):
         from factura_electronica.utils.fel_config import (
@@ -531,7 +539,7 @@ class TestFelConfigOnSite(unittest.TestCase):
         )
         from factura_electronica.patches.backfill_certificador_infile import backfill_infile_links
 
-        company = self._make_company("FEL Compania Cert 316", "F316", "3333316")
+        company = self._make_company("FEL Compania Cert 316", "F316", "3333310")
         options = frappe.get_meta("Sales Invoice").get_field("naming_series").options or ""
         series = [line for line in options.split("\n") if line.strip()][0]
         self._ensure_infile()

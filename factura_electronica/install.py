@@ -143,11 +143,69 @@ def sync_optional_fixtures():
         _ensure_identification_documents()
 
 
+def ensure_core_custom_fields():
+    """Fields every generator reads but no fixture ships (fresh v16 sites failed
+    with "Unknown column nombre_segun_sat")."""
+    from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
+
+    create_custom_fields(
+        {
+            "Sales Invoice": [
+                {
+                    "fieldname": "nombre_segun_sat",
+                    "label": "Receiver Name per SAT",
+                    "fieldtype": "Data",
+                    "insert_after": "nit_face_customer",
+                    "read_only": 1,
+                    "no_copy": 1,
+                    "translatable": 0,
+                    "description": "Filled by the SAT receiver lookup; used as NombreReceptor when present.",
+                },
+                {
+                    "fieldname": "fel_motivo_ajuste",
+                    "label": "Motivo del ajuste (FEL)",
+                    "fieldtype": "Data",
+                    "insert_after": "return_against",
+                    "no_copy": 1,
+                    "depends_on": "eval:doc.is_return || doc.is_debit_note",
+                    "description": "Se envía a SAT en la nota de crédito o débito.",
+                },
+                {
+                    "fieldname": "fel_contingencia",
+                    "label": "FEL Contingencia",
+                    "fieldtype": "Check",
+                    "insert_after": "access_number_fel",
+                    "read_only": 1,
+                    "no_copy": 1,
+                    "allow_on_submit": 1,
+                    "in_standard_filter": 1,
+                    "depends_on": "fel_contingencia",
+                    "description": "Issued while the certifier was unreachable; retried hourly with its NumeroAcceso.",
+                },
+                {
+                    "fieldname": "fel_contingencia_desde",
+                    "label": "FEL Contingencia Desde",
+                    "fieldtype": "Datetime",
+                    "insert_after": "fel_contingencia",
+                    "read_only": 1,
+                    "no_copy": 1,
+                    "allow_on_submit": 1,
+                    "depends_on": "fel_contingencia",
+                },
+            ],
+        },
+        ignore_validate=True,
+        update=True,
+    )
+
+
 def after_install():
+    ensure_core_custom_fields()
     sync_optional_fixtures()
     sync_uom_fel_codes()
 
 
 def after_migrate():
+    ensure_core_custom_fields()
     sync_optional_fixtures()
     sync_uom_fel_codes()

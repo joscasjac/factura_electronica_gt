@@ -12,6 +12,7 @@ import json
 import requests
 import xmltodict
 
+from factura_electronica.fel.contingency import with_access_number
 import frappe
 from factura_electronica.utils.receptor_name import nombre_receptor_for_row
 from frappe import _, _dict
@@ -19,6 +20,8 @@ from frappe.utils import cint, flt
 
 from factura_electronica.utils.fel_datetime import get_fecha_hora_emision
 from factura_electronica.utils.utilities_facelec import get_currency_precision, remove_html_tags
+from factura_electronica.utils.sat_countries import sat_country_name
+from factura_electronica.fel.tax_lines import items_have_exempt_iva, with_exempt_phrase
 
 
 class ExportInvoice:
@@ -64,7 +67,7 @@ class ExportInvoice:
                                 "@ID": "DatosCertificados",
                                 "dte:DatosEmision": {
                                     "@ID": "DatosEmision",
-                                    "dte:DatosGenerales": self.__d_general,
+                                    "dte:DatosGenerales": with_access_number(self.__d_general, self.__invoice_code),
                                     "dte:Emisor": self.__d_emisor,
                                     "dte:Receptor": self.__d_receptor,
                                     "dte:Frases": self.__d_frases,
@@ -544,6 +547,12 @@ class ExportInvoice:
         """
 
         try:
+
+            # Frase 4 (base legal del exento) cuando alguna línea va exenta de IVA
+
+            if items_have_exempt_iva(self.__d_items["dte:Item"]):
+
+                self.__d_frases = with_exempt_phrase(self.__d_frases, 1)
             gran_tot = 0
             for i in self.__dat_items:
                 gran_tot += i['facelec_amount_minus_excise_tax']
@@ -606,12 +615,17 @@ class ExportInvoice:
             if not codigo_exportador:
                 return False, 'Complemento exportacion no generado, por favor agregar codigo de exportador en Compania'
 
+            # SAT expects the Spanish country name ("Estados Unidos"), not the ISO code.
+            pais_consignatario = sat_country_name(frappe.db.get_value('Country', dat_direccion[0].get('country'), 'code'))
+            if not pais_consignatario:
+                return False, 'Complemento exportacion no generado: el país de la dirección del receptor no está en el catálogo de la SAT'
+
 
             self.__complemento = {
                     "dte:Complemento": {
-                    "@IDComplemento": "text",
+                    "@IDComplemento": "1",
                     "@NombreComplemento": "Complemento_Exportacion",
-                    "@URIComplemento": "uri_complemento",
+                    "@URIComplemento": "http://www.sat.gob.gt/face2/ComplementoExportaciones/0.1.0",
                     "cex:Exportacion": {
                         "@xmlns:cex": "http://www.sat.gob.gt/face2/ComplementoExportaciones/0.1.0",
                         "@Version": "1",
@@ -620,6 +634,8 @@ class ExportInvoice:
                         "cex:CodigoConsignatarioODestinatario": codigo_consignatario_comprador,
                         "cex:NombreComprador": str(self.dat_fac[0]["customer"]),
                         "cex:CodigoComprador": codigo_comprador,
+                        # Required by SAT's schema (minOccurs=1); ISO 3166 alpha-2 of the receiver's address.
+                        "cex:PaisConsignatario": pais_consignatario,
                         "cex:OtraReferencia": "EXPORTACION",
                         "cex:INCOTERM": codigo_incoterm,
                         "cex:NombreExportador": dat_compania[0]['company_name'],
@@ -716,8 +732,9 @@ class ExportInvoice:
                 status_saved = self.save_answers()
 
                 # Al primer error encontrado retornara un detalle con el mismo
-                if status_saved == False:
-                    return False, status_saved
+                if not status_saved[0]:
+                    # save_answers returns (ok, msg); a tuple is never == False
+                    return False, {'status': 'ERROR', 'numero_errores': 1, 'detalles_errores': status_saved[1]}
                     # return {'status': 'ERROR', 'detalles_errores': status_saved, 'numero_errores':1}
 
                 return True, {'status': 'OK', 'numero_autorizacion': self.__response_ok['uuid'],

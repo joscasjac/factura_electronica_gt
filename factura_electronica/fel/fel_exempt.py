@@ -648,8 +648,9 @@ class ExemptElectronicInvoice:
                 status_saved = self.save_answers()
 
                 # Al primer error encontrado retornara un detalle con el mismo
-                if status_saved == False:
-                    return False, status_saved
+                if not status_saved[0]:
+                    # save_answers returns (ok, msg); a tuple is never == False
+                    return False, {'status': 'ERROR', 'numero_errores': 1, 'detalles_errores': status_saved[1]}
                     # return {'status': 'ERROR', 'detalles_errores': status_saved, 'numero_errores':1}
 
                 return True, {'status': 'OK', 'numero_autorizacion': self.__response_ok['uuid'],

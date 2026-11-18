@@ -11,3 +11,5 @@ factura_electronica/docs/current
 node_modules
 .temp
 .cache
+# local design-review artifacts
+.impeccable/

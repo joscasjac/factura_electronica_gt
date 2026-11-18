@@ -181,9 +181,12 @@ def get_currency_precision():
     """
 
     try:
-        precision = 2
-        precision = cint(frappe.db.get_single_value('System Settings', 'currency_precision'))
-        return precision
+        # Blank (Frappe's default) means "use the number format", i.e. 2 decimals for
+        # quetzales. cint('') is 0, which rounded every FEL amount to whole quetzales.
+        value = frappe.db.get_single_value('System Settings', 'currency_precision')
+        if value in (None, ''):
+            return 2
+        return cint(value)
 
     except:
         return 2

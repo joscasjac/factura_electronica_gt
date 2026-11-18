@@ -30,8 +30,14 @@ _log = logging.getLogger(__name__)
 
 
 def fel_qr_url(authorization_number):
-    """SAT/INFILE document URL encoded in the QR."""
-    return _FEL_QR_URL + str(authorization_number)
+    """Document URL encoded in the QR: the certifier's viewer (INFILE) or SAT's verifier."""
+    try:
+        from factura_electronica.fel.print_support import fel_verification_url
+
+        return fel_verification_url(authorization_number)
+    except Exception as exc:
+        _log_failure("FEL QR URL", exc)
+        return _FEL_QR_URL + str(authorization_number)
 
 
 def _log_failure(title, exc):
@@ -73,7 +79,7 @@ def _svg_img(svg):
     encoded = base64.b64encode(svg.encode("utf-8")).decode("ascii")
     return (
         '<img src="data:image/svg+xml;base64,{encoded}" alt="FEL QR" '
-        'width="{size}" height="{size}">'
+        'width="{size}" height="{size}" style="width:{size}px !important;height:{size}px !important">'
     ).format(encoded=encoded, size=_DISPLAY_SIZE)
 
 

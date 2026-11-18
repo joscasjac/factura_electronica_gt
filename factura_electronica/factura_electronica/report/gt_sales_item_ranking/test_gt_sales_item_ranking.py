@@ -66,6 +66,10 @@ execute = ranking_report.execute
 normalize_ranking_filters = ranking_report.normalize_ranking_filters
 
 
+
+# Standalone the stub's throw raises ValueError; on a bench frappe.throw raises ValidationError.
+INVALID_FILTERS = (ValueError, getattr(sys.modules["frappe"], "ValidationError", ValueError))
+
 class TestSalesItemRanking(TestCase):
     def setUp(self):
         import frappe
@@ -110,6 +114,8 @@ class TestSalesItemRanking(TestCase):
             "INSERT INTO `tabItem Group` VALUES (?, ?, ?)",
             [("Todos", 1, 4), ("Bebidas", 2, 3)],
         )
+        saved_db = getattr(frappe, "db", None)
+        self.addCleanup(setattr, frappe, "db", saved_db)
         frappe.db = SqliteDB(self.conn)
 
     def tearDown(self):
@@ -320,26 +326,26 @@ class TestSalesItemRanking(TestCase):
         self.assertEqual(normalized["rank_by"], "Monto")
         self.assertEqual(normalized["chart_top"], 10)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(INVALID_FILTERS):
             normalize_ranking_filters({
                 "company": "Empresa GT",
                 "rank_by": "Amount",
             })
-        with self.assertRaises(ValueError):
+        with self.assertRaises(INVALID_FILTERS):
             normalize_ranking_filters({
                 "company": "Empresa GT",
                 "from_date": "2026-05-01",
                 "to_date": "2026-04-01",
             })
-        with self.assertRaises(ValueError):
+        with self.assertRaises(INVALID_FILTERS):
             normalize_ranking_filters({
                 "company": "Empresa GT",
                 "chart_top": 0,
             })
         self.defaults["Company"] = None
-        with self.assertRaises(ValueError):
+        with self.assertRaises(INVALID_FILTERS):
             normalize_ranking_filters({})
-        with self.assertRaises(ValueError):
+        with self.assertRaises(INVALID_FILTERS):
             execute({
                 "company": "Empresa GT",
                 "item_group": "No existe",

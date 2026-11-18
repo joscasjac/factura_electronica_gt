@@ -35,6 +35,12 @@ def get_columns():
             "width": 100
         },
         {
+            "label": _("Cuenta"),
+            "fieldname": "poliza",
+            "fieldtype": "Data",
+            "width": 260
+        },
+        {
             "label": _("Explicación"),
             "fieldname": "explicacion",
             "fieldtype": "Data",
@@ -68,69 +74,53 @@ def get_columns():
 
 
 def get_all_data(filters):
-    """Function to obtain and process the data.
+    """Libro Diario (Código de Comercio art. 368): every posted voucher in date order.
 
-    Args:
-        filters ([type]): [description]
-
-    Returns:
-        dicitonary list: A list of dictionaries, in ascending order, each key corresponds to a
-        column name as declared in the function above, and the value is what will be shown.
-
+    Built from GL Entry so invoices, payments, payroll and journal entries all appear,
+    not only Journal Entries (upstream also listed drafts and cancelled entries).
+    Each voucher prints a heading row, its accounts, and a sub-total row.
     """
-    # --------- EMPTY ROW ----------
+    filters = frappe._dict(filters)
+    currency = filters.company_currency or frappe.get_cached_value("Company", filters.company, "default_currency")
+    entries = frappe.get_all(
+        "GL Entry",
+        filters={
+            "company": filters.company,
+            "posting_date": ["between", [filters.from_date, filters.to_date]],
+            "is_cancelled": 0,
+        },
+        fields=["posting_date", "voucher_type", "voucher_no", "account", "debit", "credit", "remarks"],
+        order_by="posting_date asc, creation asc, voucher_no asc, debit desc",
+    )
     data = []
+    current = None
+    debit = credit = 0
+    numero = 0
 
-    
-    journal_entries = frappe.db.sql('''SELECT name, total_debit, total_credit, posting_date
-                                        FROM `tabJournal Entry`
-                                        WHERE posting_date BETWEEN %(fecha_inicio)s
-                                        AND %(fecha_final)s AND company=%(compa)s''',
-                                        {'fecha_inicio': str(filters.from_date),
-                                            'fecha_final': str(filters.to_date),
-                                            'compa': str(filters.company)}, as_dict=True)
+    def close():
+        data.append({"explicacion": "<b>Sub-Total</b>", "debito": debit, "credito": credit, "currency": currency})
+        data.append({})
 
-    # For each Journal Entry, obtain and prepare the accounts that belong to it.
-    for je in journal_entries:
-        data_d = {
-            "fecha": "<b>Tipo póliza</b>"
-        }
-        data.append(data_d)
-
-        data.extend(get_account_data(je['name'], je['posting_date'], filters))
-
-        # Generates totals rows
-        data.append({
-            'explicacion': '<b>Sub-Total</b>',
-            'debito': je['total_debit'],
-            'credito': je['total_credit'],
-            'currency': filters.company_currency  # Adds the company currency, to display the formatted values
-        })
-        data.append({}) # Generate blank row to separate Journal Entries
-
+    for entry in entries:
+        key = (entry.voucher_type, entry.voucher_no)
+        if key != current:
+            if current:
+                close()
+            numero += 1
+            current = key
+            debit = credit = 0
+            data.append({
+                "fecha": datetime.strftime(entry.posting_date, "%d/%m/%Y"),
+                "poliza": "<b>Partida {0}</b>".format(numero),
+                "explicacion": "{0} {1}{2}".format(
+                    _(entry.voucher_type), entry.voucher_no,
+                    (": " + entry.remarks[:120]) if entry.remarks and entry.remarks != "No Remarks" else ""),
+                "voucher_type": entry.voucher_type,
+                "voucher_no": entry.voucher_no,
+            })
+        data.append({"poliza": entry.account, "debito": entry.debit, "credito": entry.credit, "currency": currency})
+        debit += entry.debit
+        credit += entry.credit
+    if current:
+        close()
     return data
-
-
-def get_account_data(parent, fecha, filters):
-    """
-    Function to obtain the detail of the accounts
-
-    Args:
-        parent :
-        fecha :
-        filters ([type]): [description]
-
-    Returns:
-        dicitonary list: A list of dictionaries, in each key corresponds to a
-        column name as declared in the function above, and the value is what will be shown.
-
-    """
-
-    account_detail = frappe.db.sql('''SELECT account as poliza, user_remark as explicacion,
-                                      debit as debito, credit as credito, %(moneda)s AS currency
-                                      FROM `tabJournal Entry Account`
-                                      WHERE parent=%(parent_)s''',
-                                   {'parent_': str(parent), 'moneda': filters.company_currency}, as_dict=True)
-    account_detail[0]['fecha'] = datetime.strftime(fecha, '%d/%m/%Y')  # str(fecha)
-
-    return account_detail

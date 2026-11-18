@@ -32,6 +32,8 @@ jinja = {
         'factura_electronica.currency_in_words',
         'factura_electronica.fel.qrcode.create_fel_svg_qrcode',
         'factura_electronica.fel.qrcode.fel_qr_svg',  # v13 alias used by print formats
+        'factura_electronica.fel.print_support.fel_verification_url',
+        'factura_electronica.fel.print_support.fel_print_context',
     ]
 }
 
@@ -109,8 +111,11 @@ doc_events = {
     "Sales Invoice": {
         "on_submit": ["factura_electronica.api.pos_calculations",
                       "factura_electronica.api.generate_access_number",
-                      "factura_electronica.buscar_nit.buscar_nombre"],
+                      "factura_electronica.buscar_nit.buscar_nombre",
+                      "factura_electronica.fel.auto.on_submit"],
         "after_insert": "factura_electronica.api.generate_access_number",
+        "before_insert": "factura_electronica.fel.auto.choose_document_type",
+        "on_cancel": "factura_electronica.fel.auto.on_cancel",
     },
     "Purchase Invoice": {
         # "on_save": "factura_electronica.api.get_tax_html",
@@ -124,11 +129,18 @@ doc_events = {
     # }
     'Customer': {
         'on_update': 'factura_electronica.api_erp.custom_customer_info'
-    }
+    },
+    'Envio FEL': {
+        'after_insert': 'factura_electronica.fel.print_support.attach_certifier_pdf'
+    },
 }
 
 # Scheduled Tasks
 # ---------------
+
+scheduler_events = {
+    "hourly": ["factura_electronica.fel.contingency.retry_pending"],
+}
 
 # scheduler_events = {
 # 	"all": [

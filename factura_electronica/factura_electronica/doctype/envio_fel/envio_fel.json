@@ -40,7 +40,10 @@
   "registro_tiempo_section",
   "enviado",
   "column_break_26",
-  "recibido"
+  "recibido",
+  "anulacion_section",
+  "fecha_anulacion",
+  "motivo_anulacion"
  ],
  "fields": [
   {
@@ -270,10 +273,28 @@
    "fieldname": "xml_firmado_para_generar_doc_electronico_section",
    "fieldtype": "Section Break",
    "label": "XML ENVIADO EN PETICION"
+  },
+  {
+   "fieldname": "anulacion_section",
+   "fieldtype": "Section Break",
+   "label": "Anulación",
+   "depends_on": "eval:doc.status=='Cancelled'"
+  },
+  {
+   "fieldname": "fecha_anulacion",
+   "fieldtype": "Datetime",
+   "label": "Fecha de anulación",
+   "read_only": 1
+  },
+  {
+   "fieldname": "motivo_anulacion",
+   "fieldtype": "Small Text",
+   "label": "Motivo de anulación",
+   "read_only": 1
   }
  ],
  "links": [],
- "modified": "2026-10-15 21:40:00.000000",
+ "modified": "2026-11-18 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Factura Electronica",
  "name": "Envio FEL",

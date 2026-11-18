@@ -30,7 +30,7 @@ frappe.query_reports["GT General Ledger"] = {
             "fieldname": "from_date",
             "label": __("From Date"),
             "fieldtype": "Date",
-            "default": frappe.datetime.add_months(frappe.datetime.get_today(), -1),
+            "default": frappe.datetime.month_start(frappe.datetime.add_months(frappe.datetime.get_today(), -1)),
             "reqd": 1,
             "width": "60px"
         },
@@ -38,7 +38,7 @@ frappe.query_reports["GT General Ledger"] = {
             "fieldname": "to_date",
             "label": __("To Date"),
             "fieldtype": "Date",
-            "default": frappe.datetime.get_today(),
+            "default": frappe.datetime.month_end(frappe.datetime.add_months(frappe.datetime.get_today(), -1)),
             "reqd": 1,
             "width": "60px"
         },

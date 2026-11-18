@@ -458,6 +458,11 @@ class TestIncompleteMonths(TestCase):
 
     @patch(
         "factura_electronica.factura_electronica.report.gt_monthly_sales_history."
+        "gt_monthly_sales_history.sales_invoices_by_day",
+        return_value=[],
+    )
+    @patch(
+        "factura_electronica.factura_electronica.report.gt_monthly_sales_history."
         "gt_monthly_sales_history.sales_invoices_monthly",
         return_value=[],
     )
@@ -471,7 +476,7 @@ class TestIncompleteMonths(TestCase):
         "gt_monthly_sales_history.report_today",
         return_value=date(2026, 10, 15),
     )
-    def test_message_is_shown_only_for_the_current_year(self, _today, _currency, _query):
+    def test_message_is_shown_only_for_the_current_year(self, _today, _currency, _query, _daily):
         _columns, _rows, current = execute({"company": "Acme", "year": 2026})
         self.assertIn("Octubre", current)
         self.assertIn("meses completos", current)

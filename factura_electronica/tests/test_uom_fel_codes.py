@@ -115,6 +115,9 @@ class TestUomFelCodes(unittest.TestCase):
                 },
             }
         )
+        # Under bench this is the real frappe shared with other suites: restore it.
+        saved = {name: getattr(frappe, name, None) for name in ("db", "get_doc")}
+        self.addCleanup(lambda: [setattr(frappe, k, v) for k, v in saved.items()])
         frappe.db = self.store
         frappe.get_doc = lambda payload: _Doc(payload)
 
@@ -190,12 +193,12 @@ class TestUomFelCodes(unittest.TestCase):
             result["rows"] = rows
             return {"skipped": False, "filled": 0, "kept": 0, "created": 0}
 
-        original = install.sync_uom_fel_codes
-        install.sync_uom_fel_codes = record
-        try:
+        from unittest import mock
+
+        with mock.patch.object(install, "sync_uom_fel_codes", record), \
+                mock.patch.object(install, "ensure_core_custom_fields", lambda: None), \
+                mock.patch.object(install, "sync_optional_fixtures", lambda: None):
             install.after_migrate()
-        finally:
-            install.sync_uom_fel_codes = original
         self.assertIsNone(result["rows"])
 
     def test_uom_is_not_a_fixture(self):

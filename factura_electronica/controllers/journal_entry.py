@@ -1,764 +1,204 @@
 # Copyright (c) 2020, Si Hay Sistema and contributors
+# Rewritten 2026 by QuestFlows: correct retention accounts, IVA retention rate and
+# ISR brackets; no goal-seek rounding rows.
 # For license information, please see license.txt
+"""Journal Entry that collects a Sales Invoice when the customer withholds ISR and/or IVA.
+
+When a customer is a retention agent it pays the invoice minus the retained taxes and
+hands over a constancia de retención. The retained amounts are an asset for us (taxes
+already paid on our behalf), so they are debited to the receivable retention accounts
+configured in Company > Tax Witholding Ranges:
+
+    Dr Bank                          grand total - ISR - IVA retained
+    Dr ISR retenido por compensar    ISR retained
+    Dr IVA retenido por compensar    IVA x retention rate
+        Cr Receivable (customer)     grand total
+"""
 
 from __future__ import unicode_literals
 
-import json
 from datetime import date
 
 import frappe
-from factura_electronica.utils.formulas import GoalSeek, amount_converter, apply_formula_isr, number_of_decimals
-from factura_electronica.utils.utilities_facelec import clean_traceback_py
 from frappe import _
-from frappe.utils import cint, cstr, flt
+from frappe.utils import flt
+
+from factura_electronica.utils.formulas import apply_formula_isr, retention_brackets
+
+DEFAULT_IVA_RETENTION_RATE = 15
 
 
-class JournalEntrySaleInvoice():
+class JournalEntrySaleInvoice:
     def __init__(self, data_invoice, is_isr_ret, is_iva_ret, debit_in_acc_currency,
-                 is_multicurrency=0, cost_center='', descr=''):
+                 is_multicurrency=0, cost_center='', descr='', iva_retention_rate=None):
+        self.invoice = data_invoice
         self.company = data_invoice.get("company")
         self.posting_date = data_invoice.get("posting_date")
-        self.posting_time = data_invoice.get("posting_time", "")
-        self.grand_total = data_invoice.get("grand_total")
-        self.grand_total_currency_company = data_invoice.get("base_grand_total")
+        self.grand_total = flt(data_invoice.get("grand_total"))
+        self.base_grand_total = flt(data_invoice.get("base_grand_total"))
         self.debit_to = data_invoice.get("debit_to")
         self.currency = data_invoice.get("currency")
-        self.curr_exch = data_invoice.get("conversion_rate")  # Se usara el de la factura ya generada
+        self.conversion_rate = flt(data_invoice.get("conversion_rate")) or 1
         self.customer = data_invoice.get("customer")
         self.name_inv = data_invoice.get("name")
-        self.base_net_total = data_invoice.get("base_total_taxes_and_charges")  # IVA EN moneda de company
+        self.bank_account = debit_in_acc_currency
         self.cost_center = cost_center or ''
-        self.debit_in_acc_currency = debit_in_acc_currency
-        self.is_multicurrency = is_multicurrency
-        self.is_isr_retention = int(is_isr_ret)
-        self.is_iva_retention = int(is_iva_ret)
+        self.is_multicurrency = int(is_multicurrency or 0)
+        self.is_isr_retention = int(is_isr_ret or 0)
+        self.is_iva_retention = int(is_iva_ret or 0)
+        self.iva_retention_rate = flt(iva_retention_rate) if iva_retention_rate else DEFAULT_IVA_RETENTION_RATE
         self.remarks = descr
-        self.docstatus = 0
+        self.ISR_PAYABLE_GTQ = 0
+        self.IVA_OPE = 0
         self.rows_journal_entry = []
-        self.decimals_ope = 2
+
+    # -- amounts in company currency (GTQ) ------------------------------------------
+    def vat_rate(self):
+        brackets = retention_brackets(self.company)
+        rate = flt(brackets[0].get("iva_percentage_rate")) if brackets else 12
+        return (rate or 12) / 100
+
+    def invoice_iva(self):
+        """IVA on the invoice in GTQ: the taxes rows when present, else grand total / 1.12."""
+        iva = sum(
+            flt(row.base_tax_amount_after_discount_amount or row.base_tax_amount)
+            for row in self.invoice.get("taxes") or []
+            if (row.get("tax_name") or "").upper().startswith("IVA")
+            or "IVA" in (row.get("account_head") or "").upper()
+        )
+        if iva:
+            return flt(iva, 2)
+        return flt(self.base_grand_total - self.base_grand_total / (1 + self.vat_rate()), 2)
+
+    def compute(self):
+        if self.is_isr_retention:
+            net = self.base_grand_total - self.invoice_iva()
+            self.ISR_PAYABLE_GTQ = flt(apply_formula_isr(net, self.company), 2)
+        if self.is_iva_retention:
+            self.IVA_OPE = flt(self.invoice_iva() * self.iva_retention_rate / 100, 2)
+
+    # -- rows -----------------------------------------------------------------------
+    def _account_currency(self, account):
+        return frappe.db.get_value("Account", account, "account_currency")
+
+    def _row(self, account, debit_gtq=0, credit_gtq=0, **extra):
+        currency = self._account_currency(account)
+        company_currency = frappe.get_cached_value("Company", self.company, "default_currency")
+        rate = 1 if currency == company_currency else self.conversion_rate
+        row = {
+            "account": account,
+            "cost_center": self.cost_center,
+            "account_currency": currency,
+            "exchange_rate": rate,
+            "debit_in_account_currency": flt(debit_gtq / rate, 2),
+            "credit_in_account_currency": flt(credit_gtq / rate, 2),
+            "debit": flt(debit_gtq, 2),
+            "credit": flt(credit_gtq, 2),
+        }
+        row.update(extra)
+        return row
+
+    def _retention_account(self, receivable_field, fallback_field):
+        for bracket in retention_brackets(self.company):
+            account = bracket.get(receivable_field) or bracket.get(fallback_field)
+            if account:
+                return account
+        return None
+
+    def build_rows(self):
+        receivable = self._row(
+            self.debit_to,
+            credit_gtq=self.base_grand_total,
+            party_type="Customer",
+            party=self.customer,
+            reference_type="Sales Invoice",
+            reference_name=self.name_inv,
+        )
+        if receivable["account_currency"] == self.currency:
+            receivable["credit_in_account_currency"] = self.grand_total
+        rows = [receivable]
+
+        if self.ISR_PAYABLE_GTQ:
+            account = self._retention_account("isr_account_receivable", "isr_account_payable")
+            if not account:
+                return False, _("Configure the ISR retention account in Company > Tax Witholding Ranges")
+            rows.append(self._row(account, debit_gtq=self.ISR_PAYABLE_GTQ))
+        if self.IVA_OPE:
+            account = self._retention_account("vat_retention_to_compensate", "vat_account_receivable")
+            if not account:
+                return False, _("Configure the IVA retention account in Company > Tax Witholding Ranges")
+            rows.append(self._row(account, debit_gtq=self.IVA_OPE))
+
+        bank_gtq = flt(self.base_grand_total - self.ISR_PAYABLE_GTQ - self.IVA_OPE, 2)
+        rows.append(self._row(self.bank_account, debit_gtq=bank_gtq))
+
+        # Rounding difference from converting the bank row to its currency.
+        difference = flt(sum(r["credit"] for r in rows) - sum(r["debit"] for r in rows), 2)
+        if difference:
+            round_off = frappe.get_cached_value("Company", self.company, "round_off_account")
+            rows.append(self._row(round_off, debit_gtq=max(difference, 0), credit_gtq=max(-difference, 0)))
+        self.rows_journal_entry = rows
+        return True, "OK"
 
     def create(self):
-        '''Funcion encargada de crear journal entry haciendo referencia a x factura'''
+        """Create the draft Journal Entry. Returns (True, name) or (False, message)."""
         try:
-            # Obtenemos el centro de costo default para la empresa, esto puede ser modifcado manualmente
             if not self.cost_center:
-                self.cost_center = frappe.db.get_value("Company", {"name": self.company}, "cost_center")
-
-            # VALIDAMOS LAS DEPENDENCIAS SEGUN ESCENARIO
-            # Escenario 1 - POLIZA NORMAL, FACTURA DE VENTA
-            if self.is_iva_retention == 0 and self.is_isr_retention == 0:
-                status_dep = self.validate_dependencies()
-                if status_dep[0] == False:
-                    return False, status_dep[1]
-
-                status_rows = self.apply_normal_scenario()
-                if status_rows[0] == False:
-                    return False, status_rows[1]
-
-            # Escenario 2 - POLIZA CON RETENCION ISR, FACTURA DE VENTA
-            elif self.is_iva_retention == 0 and self.is_isr_retention == 1:
-                status_dep = self.validate_dependencies()
-                if status_dep[0] == False:
-                    return False, status_dep[1]
-
-                status_rows = self.apply_isr_scenario()
-                if status_rows[0] == False:
-                    return False, status_rows[1]
-
-            # ESCENARIO 3 - RETENCION ISR Y RETENCION IVA
-            elif self.is_iva_retention == 1 and self.is_isr_retention == 1:
-                status_dep = self.validate_dependencies()
-                if status_dep[0] == False:
-                    return False, status_dep[1]
-
-                status_rows = self.apply_iva_isr_scenario()
-                if status_rows[0] == False:
-                    return False, status_rows[1]
-
-            # ESCENARIO 4 - RETENCION IVA
-            elif self.is_iva_retention == 1 and self.is_isr_retention == 0:
-                status_dep = self.validate_dependencies()
-                if status_dep[0] == False:
-                    return False, status_dep[1]
-
-                status_rows = self.apply_iva_retencion_scenario()
-                if status_rows[0] == False:
-                    return False, status_rows[1]
-
-            else:
-                return False, 'No se recibio ninguna opcion para generar Poliza contable'
-
-            JOURNALENTRY = frappe.get_doc({
+                self.cost_center = frappe.get_cached_value("Company", self.company, "cost_center")
+            if (self.is_isr_retention or self.is_iva_retention) and not retention_brackets(self.company):
+                return False, _("No retention ranges are configured in Company > Tax Witholding Ranges")
+            self.compute()
+            status = self.build_rows()
+            if not status[0]:
+                return status
+            journal = frappe.get_doc({
                 "doctype": "Journal Entry",
                 "voucher_type": "Journal Entry",
                 "company": self.company,
                 "posting_date": self.posting_date,
                 "user_remark": self.remarks,
                 "accounts": self.rows_journal_entry,
-                "multi_currency": self.is_multicurrency,
-                "docstatus": 0
+                "multi_currency": 1 if self.is_multicurrency or self._needs_multicurrency() else 0,
             })
-            status_journal = JOURNALENTRY.insert(ignore_permissions=True)
-
-        except:
-            return False, 'Ocurrio un problema al tratar de crear la Poliza Contable, si esta trabajando con multimonedas por favor especifiquelo en la opcion <b>Es Multimoneda?</b> \n\n Y tambien verifique que la cuenta destino sea de la misma moneda que esta trabajando en la factura \n\n'+str(clean_traceback_py(frappe.get_traceback()))
-
-        else:
-
-            if (self.is_isr_retention == 1) or (self.is_iva_retention == 1):
-                ret = 'IVA' if self.is_iva_retention == 1 else ''
-                ret = 'ISR' if self.is_isr_retention == 1 else ''
-
-                isr_amt_ok = 0
-                if self.ISR_PAYABLE_GTQ != 0:
-                    isr_amt_ok = self.ISR_PAYABLE_GTQ
-
-                    # Registrar retencion
-                    register_withholding({
-                        'retention_type': ret,
-                        'party_type': 'Sales Invoice',
-                        'company': self.company,
-                        'tax_id': '',
-                        'sales_invoice': self.name_inv,
-                        'invoice_date': self.posting_date,
-                        'grand_total': self.grand_total,
-                        'currency': self.currency,
-                        'retention_amount': isr_amt_ok
-                    })
-
-            return True, status_journal.name
-
-    def validate_dependencies(self):
-        """
-        Validador dependencias necesarias para generar una poliza contable
-        1. Validacion retenciones configuradas para company
-        2. Validacion escenario a aplicar, ISR 5% o 7%
-        3. Obtencion tasa IVA
-        4. Obtencion cuenta isr por pagar (retencion)
-        5. Obtencion cuenta iva por pagar (retencion)
-
-        Returns:
-            tuple: Boolean, descripcion de mensaje
-        """
-        try:
-            # grand total en moneda de la compania, GTQ
-            monto = self.grand_total_currency_company
-
-            # obtenemos los rangos de retencion configurados en company
-            self.retention_ranges = frappe.db.get_values('Tax Witholding Ranges', filters={'parent': self.company},
-                                                         fieldname=['isr_account_payable', 'isr_account_receivable',
-                                                                    'iva_account_payable', 'vat_account_receivable',
-                                                                    'isr_percentage_rate', 'minimum_amount',
-                                                                    'maximum_amount', 'iva_percentage_rate'], as_dict=1)
-            # Si no hay configurados
-            if len(self.retention_ranges) == 0:
-                return False, 'No se puede procede con la operacion, no se encontraron rango de retencion configurados'
-
-            # TODO: REFACTORIZAR
-            # APLIQUE O NO APLIQUEN LOS ESCENARIO OBTENEMOS LOS DATOS AUTOMATICAMENTE,
-            # Por cada retencion configurada, verificamos que escenario aplica
-            for retention in self.retention_ranges:
-                # Si aplica el primer escenario. Aplicamos el 5%
-                if (monto > retention.get('minimum_amount')) and (monto <= retention.get('maximum_amount')):
-                    # Obtenemos el porcentaje de impuesto usado en la factura
-                    if not retention.get('iva_percentage_rate'):
-                        return False, 'No se puede proceder con los calculos, no se encontro una tasa de IVA configurada'
-                    self.vat_rate = (retention.get('iva_percentage_rate')/100)  # 0.12
-
-                    # Cuenta ISR por pagar
-                    if not retention.get('isr_account_payable'):
-                        return False, 'No se puede proceder con la generacion de poliza contable, no se encontro ninguna cuenta para ISR retencion configurada'
-                    self.isr_account_payable = retention.get('isr_account_payable')
-
-                    # Cuenta IVA por pagar
-                    if not retention.get('iva_account_payable'):
-                        return False, 'No se puede proceder con la generacion de poliza contable, no se encontro ninguna cuenta para IVA retencion configurada'
-                    self.iva_account_payable = retention.get('iva_account_payable')
-
-
-                # Si aplica el escenario. Aplicamos el 7%
-                if (monto >= retention.get('minimum_amount')) and (retention.get('maximum_amount') == 0):
-                    # Obtenemos el porcentaje de impuesto usado en la factura
-                    if not retention.get('iva_percentage_rate'):
-                        return False, 'No se puede proceder con los calculos, no se encontro una tasa de IVA configurada'
-                    self.vat_rate = (retention.get('iva_percentage_rate')/100)  # 0.12
-
-                    # Cuenta ISR por pagar
-                    if not retention.get('isr_account_payable'):
-                        return False, 'No se puede proceder con la generacion de poliza contable, no se encontro ninguna cuenta para ISR retencion configurada'
-                    self.isr_account_payable = retention.get('isr_account_payable')
-
-                    # Cuenta IVA por pagar
-                    if not retention.get('iva_account_payable'):
-                        return False, 'No se puede proceder con la generacion de poliza contable, no se encontro ninguna cuenta para IVA retencion configurada'
-                    self.iva_account_payable = retention.get('iva_account_payable')
-
-            return True, 'OK'
-
-        except:
-            return False, str(frappe.get_traceback())
-
-    def apply_normal_scenario(self):
-
-        # En el escenario normal, generamos filas simples
-        self.rows_journal_entry = [
-            {
-                'account': self.debit_to, 'party_type': 'Customer', 'party': self.customer,
-                'reference_type': 'Sales Invoice', 'reference_name': self.name_inv,
-                'credit_in_account_currency': self.grand_total, 'cost_center': self.cost_center
-            },
-            {
-                'account': self.debit_in_acc_currency, 'debit_in_account_currency': self.grand_total,
-                'cost_center': self.cost_center
-            }
-        ]
-
-        return True, 'OK'
-
-    def apply_isr_scenario(self):
-        """
-        Aplica los calculos necesarios para las filas que conformaran la poliza contable,
-        para una factura con retencion ISR
-
-        NOTA IMPORTANTE: LOS CALCULOS APLICADOS AQUI APLICAN PARA GUATEMALA, Y TOMANDO
-        EN CUENTA QUE LAS CUENTAS QUE REGISTRAN LOS MONTOS ES EN QUETZALES :)
-
-        Returns:
-            tuple: Boolean, descripcion operacion
-        """
-        try:
-            # -------------------------------------------------------------------------------------------------------------------------
-            # FILA 1: El monto a cobrar
-            # obtenemos la moneda de la cuenta por cobrar
-            curr_row_a = frappe.db.get_value("Account", {"name": self.debit_to}, "account_currency")
-
-            # CALCULOS APLICABLES PARA IMPUESTOS GUATEMALA
-            # Si la moneda de la cuenta es GTQ usamos 1, si es USD usamos el tipo cambio
-            exch_rate_row = 1 if (curr_row_a == "GTQ") else self.curr_exch
-
-            row_one = {
-                "account": self.debit_to,  # Cuenta por cobrar
-                "cost_center": self.cost_center,  # Otra cuenta que revisa si esta dentro del presupuesto
-                "credit_in_account_currency": round(amount_converter(self.grand_total, self.curr_exch,
-                                                                     from_currency=self.currency,
-                                                                     to_currency=curr_row_a), self.decimals_ope),  # convierte el monto a la moneda de la cuenta
-                "debit_in_account_currency": 0,
-                "exchange_rate": exch_rate_row,  # Tipo de cambio
-                "account_currency": curr_row_a,  # Moneda de la cuenta
-                "party_type": "Customer",  # Tipo de tercero: Proveedor, Cliente, Estudiante, Accionista, Etc. SE USARA CUSTOMER UA QUE VIENE DE SALES INVOICE
-                "party": self.customer,
-                "reference_name": self.name_inv,  # Referencia dada por sistema
-                "reference_type": "Sales Invoice"
-            }
-            self.rows_journal_entry.append(row_one)
-
-
-
-            # -------------------------------------------------------------------------------------------------------------------------
-            # FILA 2: MONTO QUE EN REALIDAD SE PAGARA, GRAND TOTAL MENOS ISR
-            curr_row_b = frappe.db.get_value("Account", {"name": self.debit_in_acc_currency},
-                                             "account_currency")
-
-            # Validacion que tipo de cambio usar, segun moneda de la cuenta
-            exch_rate_row_b = 1 if (curr_row_b == "GTQ") else self.curr_exch
-
-            # VALIDACION GRAND TOTAL DE FACTURA
-            # Para una correcta validacion usamos el grand total en la moneda de company "GTQ"
-            grand_total_gtq = self.grand_total_currency_company
-
-            # Obtenemos el monto sin IVA del grand total moneda de company "GTQ"
-            GRAND_TOTAL_NO_IVA = round(grand_total_gtq/(self.vat_rate + 1), self.decimals_ope)
-
-            # El monto en quetzales lo pasamos a la funcion que calcula automaticamente el ISR
-            self.ISR_PAYABLE_GTQ = apply_formula_isr(GRAND_TOTAL_NO_IVA, self.company, decimals=self.decimals_ope)
-
-            # El monto a pagar, restando el ISR a retener
-            amt_without_isr = (grand_total_gtq - (self.ISR_PAYABLE_GTQ))
-
-            # Se vuelve a validar la conversion a la moneda de la cuenta en caso aplique
-            calc_row_two = round(amount_converter(amt_without_isr, self.curr_exch,
-                                                  from_currency='GTQ', to_currency=curr_row_b), self.decimals_ope)
-
-            row_two = {
-                "account": self.debit_in_acc_currency,  # Cuenta a que se va a utilizar
-                "cost_center": self.cost_center,  # Otra cuenta que revisa si esta dentro del presupuesto
-                "credit_in_account_currency": 0,  # Valor del monto a acreditar
-                "exchange_rate": exch_rate_row_b,  # Tipo de cambio
-                "account_currency": curr_row_b,  # Moneda de la cuenta
-                "debit_in_account_currency": calc_row_two,
-            }
-            self.rows_journal_entry.append(row_two)
-
-            # -------------------------------------------------------------------------------------------------------------------------
-            # FILA 3: RETENCION ISR
-            # moneda de la cuenta
-            curr_row_d = frappe.db.get_value("Account", {"name": self.isr_account_payable}, "account_currency")
-            # Si la moneda de la cuenta es usd usara el tipo cambio de la factura
-            # resultado = valor_si if condicion else valor_no
-            exch_rate_row_d = 1 if (curr_row_d == "GTQ") else self.curr_exch
-            isr_curr_acc = amount_converter(self.ISR_PAYABLE_GTQ, self.curr_exch, from_currency="GTQ", to_currency=curr_row_d)
-
-            row_three = {
-                "account": self.isr_account_payable,  # Cuenta a que se va a utilizar
-                "cost_center": self.cost_center,  # Otra cuenta que revisa si esta dentro del presupuesto
-                "credit_in_account_currency": 0,  #Valor del monto a acreditar
-                "exchange_rate": exch_rate_row_d,  # Tipo de cambio
-                "account_currency": curr_row_d,  # Moneda de la cuenta
-                "debit_in_account_currency": round(isr_curr_acc, self.decimals_ope),  #Valor del monto a debitar
-            }
-            self.rows_journal_entry.append(row_three)
-
-            # with open('special.json', 'w') as f:
-            #     f.write(json.dumps(self.rows_journal_entry, default=str, indent=2))
-
-
-
-            # VALIDACION SI ES NECESARIO AGREGAR UNA FILA PARA CUADRE DE CENTAVOS
-            # convierte de GTQ -> USD, y luego de USD -> GTQ, para obtener correctamente todos
-            # los decimales, para hacer aproximacion
-            INT_GTQ = flt(amount_converter(flt(amount_converter(amt_without_isr, self.curr_exch,
-                                       from_currency='GTQ', to_currency=self.currency), 2), self.curr_exch,
-                                       from_currency=self.currency, to_currency='GTQ'), 2)
-
-            r = lambda f: f - f % 0.01
-
-            total_debit = flt(float(INT_GTQ + flt(self.ISR_PAYABLE_GTQ, 2)))  # LO QUE ME PAGAN
-            total_credit = float(grand_total_gtq)  # LO QUE ME DEBEN
-
-            # ONLY DEBUG
-            # with open('ISR.txt', 'w') as f:
-            #     f.write(str(ISR_PAYABLE_GTQ))
-
-            # with open('no_isr.txt', 'w') as f:
-            #     f.write(str(INT_GTQ))
-
-            # El monto que meta que quiero obtener
-            goal = total_credit
-            x0 = 3  # estimacion
-
-            def fun(x):  # con la evaluacion encontramos la incognita x que son los centavos para cuadrar
-                amt_ok = total_debit - x
-                return amt_ok
-
-            # with open('balance.txt', 'w') as f:
-            #     f.write(f'{total_debit} -- {total_credit}')
-
-
-            if total_debit != total_credit:
-
-                centavos = GoalSeek(fun, goal, x0)
-                # centavos = total_credit - total_debit  # otra forma es hacer resta y el resultado son los centavos
-
-                acc_round_company = frappe.db.get_value('Company', {'name': self.company}, 'write_off_account')
-                acc_round_company_currency = frappe.db.get_value('Account', {'name': acc_round_company}, 'account_currency')
-                row_four = {
-                    "account": acc_round_company,  # Cuenta a que se va a utilizar
-                    "cost_center": self.cost_center,  # Otra cuenta que revisa si esta dentro del presupuesto
-                    "credit_in_account_currency": 0,  #Valor del monto a acreditar
-                    "exchange_rate": 1,  # Tipo de cambio
-                    "account_currency": acc_round_company_currency,  # Moneda de la cuenta
-                    # "credit_in_account_currency": abs(round(centavos, 2)),  # se usa absoluto si a en credit
-                }
-
-                # Validamos si el cuadre va en debit o credit
-                if centavos>0:
-                    row_four.update({
-                        "credit_in_account_currency": flt(centavos),
-                        "credit": flt(centavos),
-                    })
-                    self.rows_journal_entry.append(row_four)
-
-                elif centavos<0:
-                    row_four.update({
-                        "debit_in_account_currency": flt(abs(centavos)),
-                        "debit": flt(abs(centavos)),
-                    })
-                    self.rows_journal_entry.append(row_four)
-
-
-                # DEBUG: aqui puedo ver cuantos centavos faltan para cuadrar
-                # with open('centavos.txt', 'w') as f:
-                #     f.write(str(centavos))
-
-        except:
-            return False, str(frappe.get_traceback())
-
-        else:
-            return True, 'OK'
-
-    def apply_iva_isr_scenario(self):
-        """
-        Aplica los calculos necesarios para las filas que conformaran la poliza contable,
-        para una factura , con retencion IVA e ISR
-
-        NOTA IMPORTANTE: LOS CALCULOS APLICADOS AQUI APLICAN PARA GUATEMALA, Y TOMANDO
-        EN CUENTA QUE LAS CUENTAS QUE REGISTRAN LOS MONTOS ES EN QUETZALES :)
-
-        Returns:
-            tuple: Boolean, descripcion operacion
-        """
-        try:
-            # -------------------------------------------------------------------------------------------------------------------------
-            # FILA 1: El monto acordado con supplier
-            # obtenemos la moneda de la cuenta por pagar
-            curr_row_a = frappe.db.get_value("Account", {"name": self.debit_to}, "account_currency")
-
-            # CALCULOS APLICABLES PARA IMPUESTOS GUATEMALA
-            # Si la moneda de la cuenta es GTQ usamos 1, si es USD usamos el tipo cambio
-            exch_rate_row = 1 if (curr_row_a == "GTQ") else self.curr_exch
-
-            row_one = {
-                "account": self.debit_to,  # Cuenta por pagar
-                "cost_center": self.cost_center,  # Otra cuenta que revisa si esta dentro del presupuesto
-                "credit_in_account_currency": round(amount_converter(self.grand_total, self.curr_exch,
-                                                                     from_currency=self.currency,
-                                                                     to_currency=curr_row_a), self.decimals_ope),  # convierte el monto a la moneda de la cuenta
-                "debit_in_account_currency": 0,
-                "exchange_rate": exch_rate_row,  # Tipo de cambio
-                "account_currency": curr_row_a,  # Moneda de la cuenta
-                "party_type": "Customer",  # Tipo de tercero: Proveedor, Cliente, Estudiante, Accionista, Etc. SE USARA CUSTOMER UA QUE VIENE DE SALES INVOICE
-                "party": self.customer,
-                "reference_name": self.name_inv,  # Referencia dada por sistema
-                "reference_type": "Sales Invoice"
-            }
-            self.rows_journal_entry.append(row_one)
-
-
-
-            # -------------------------------------------------------------------------------------------------------------------------
-            # FILA 2: MONTO QUE EN REALIDAD SE cobrara, GRAND TOTAL MENOS ISR, MENOS IVA
-            curr_row_b = frappe.db.get_value("Account", {"name": self.debit_in_acc_currency},
-                                             "account_currency")
-
-            # Validacion que tipo de cambio usar, segun moneda de la cuenta
-            exch_rate_row_b = 1 if (curr_row_b == "GTQ") else self.curr_exch
-
-            # VALIDACION GRAND TOTAL DE FACTURA
-            # Para una correcta validacion usamos el grand total en la moneda de company "GTQ"
-            grand_total_gtq = self.grand_total_currency_company
-
-            # Obtenemos el monto sin IVA del grand total moneda de company "GTQ"
-            GRAND_TOTAL_NO_IVA = round(grand_total_gtq/(self.vat_rate + 1), self.decimals_ope)
-
-            # Obtenemos el iva a retener GTQ
-            self.IVA_OPE = round((GRAND_TOTAL_NO_IVA * self.vat_rate), self.decimals_ope)
-
-            # El monto en quetzales lo pasamos a la funcion que calcula automaticamente el ISR
-            self.ISR_PAYABLE_GTQ = apply_formula_isr(GRAND_TOTAL_NO_IVA, self.company, decimals=self.decimals_ope)
-
-            # El monto a pagar, restando el IVA a retener, e ISR a retener
-            amt_without_isr_iva = (grand_total_gtq - (self.IVA_OPE + self.ISR_PAYABLE_GTQ))
-
-            # Se vuelve a validar la conversion a la moneda de la cuenta en caso aplique
-            calc_row_two = round(amount_converter(amt_without_isr_iva, self.curr_exch,
-                                                  from_currency='GTQ', to_currency=curr_row_b), self.decimals_ope)
-
-            row_two = {
-                "account": self.debit_in_acc_currency,  #Cuenta a que se va a utilizar
-                "cost_center": self.cost_center,  # Otra cuenta que revisa si esta dentro del presupuesto
-                "credit_in_account_currency": 0,  #Valor del monto a acreditar
-                "exchange_rate": exch_rate_row_b,  # Tipo de cambio
-                "account_currency": curr_row_b,  # Moneda de la cuenta
-                "debit_in_account_currency": calc_row_two,
-            }
-            self.rows_journal_entry.append(row_two)
-
-
-
-            # -------------------------------------------------------------------------------------------------------------------------
-            # FILA 3: IVA a retener
-            # moneda de la cuenta
-            curr_row_c = frappe.db.get_value("Account", {"name": self.iva_account_payable}, "account_currency")
-            # Si la moneda de la cuenta es usd usara el tipo cambio de la factura
-            # resultado = valor_si if condicion else valor_no
-            exch_rate_row_c = 1 if (curr_row_c == "GTQ") else self.curr_exch
-            iva_curr_acc = amount_converter(self.IVA_OPE, self.curr_exch, from_currency="GTQ", to_currency=curr_row_c)
-
-            row_three = {
-                "account": self.iva_account_payable,  #Cuenta a que se va a utilizar
-                "cost_center": self.cost_center,  # Otra cuenta que revisa si esta dentro del presupuesto
-                "credit_in_account_currency": 0,  #Valor del monto a acreditar
-                "exchange_rate": exch_rate_row_c,  # Tipo de cambio
-                "account_currency": curr_row_c,  # Moneda de la cuenta
-                "debit_in_account_currency": round(iva_curr_acc, self.decimals_ope),  #Valor del monto a debitar
-            }
-            self.rows_journal_entry.append(row_three)
-
-
-
-            # -------------------------------------------------------------------------------------------------------------------------
-            # FILA 4: RETENCION ISR
-            # moneda de la cuenta
-            curr_row_d = frappe.db.get_value("Account", {"name": self.isr_account_payable}, "account_currency")
-            # Si la moneda de la cuenta es usd usara el tipo cambio de la factura
-            # resultado = valor_si if condicion else valor_no
-            exch_rate_row_d = 1 if (curr_row_d == "GTQ") else self.curr_exch
-            isr_curr_acc = amount_converter(self.ISR_PAYABLE_GTQ, self.curr_exch, from_currency="GTQ", to_currency=curr_row_c)
-
-            row_four = {
-                "account": self.isr_account_payable,  # Cuenta a que se va a utilizar
-                "cost_center": self.cost_center,  # Otra cuenta que revisa si esta dentro del presupuesto
-                "credit_in_account_currency": 0,  #Valor del monto a acreditar
-                "exchange_rate": exch_rate_row_d,  # Tipo de cambio
-                "account_currency": curr_row_d,  # Moneda de la cuenta
-                "debit_in_account_currency": round(isr_curr_acc, self.decimals_ope),  #Valor del monto a debitar
-            }
-            self.rows_journal_entry.append(row_four)
-
-            # with open('special.json', 'w') as f:
-            #     f.write(json.dumps(self.rows_journal_entry, default=str, indent=2))
-
-
-            # -------------------------------------------------------------------------------------------------------------------------
-            # FILA 5: VALIDACION SI ES NECESARIO AGREGAR UNA FILA PARA CUADRE DE CENTAVOS
-            #
-            # convierte de GTQ -> USD, y luego de USD -> GTQ, para obtener correctamente todos
-            # los decimales, para hacer aproximacion
-            INT_GTQ = flt(amount_converter(flt(amount_converter(amt_without_isr_iva, self.curr_exch,
-                            from_currency='GTQ', to_currency=self.currency), 2), self.curr_exch,
-                            from_currency=self.currency, to_currency='GTQ'), 2)
-
-            r = lambda f: f - f % 0.01
-            # s = lambda f: f - f % 0.001
-
-            total_debit = flt(float(INT_GTQ + flt(self.ISR_PAYABLE_GTQ, 2) + flt(self.IVA_OPE, 2)))  # LO QUE ME PAGAN
-            total_credit = flt(grand_total_gtq)  # LO QUE ME DEBEN
-
-            # with open('test', 'w') as f:
-            #     f.write(str(flt(total_credit, 2)))
-
-            # with open('balance.txt', 'w') as f:
-            #     f.write(f'{total_debit} -- {total_credit}')
-
-            # El monto que meta que quiero obtener
-            goal = total_credit
-            x0 = 3  # estimacion
-
-            def fun(x):  # con la evaluacion encontramos la incognita x que son los centavos para cuadrar
-                amt_ok = total_debit - x
-                return amt_ok
-
-            if total_debit != total_credit:
-
-                centavos = GoalSeek(fun ,goal, x0, MaxIter=1000000)
-
-                # centavos = r(total_debit) - r(total_credit)  # otra forma es hacer resta y el resultado son los centavos
-
-                acc_round_company = frappe.db.get_value('Company', {'name': self.company}, 'write_off_account')
-                acc_round_company_currency = frappe.db.get_value('Account', {'name': acc_round_company}, 'account_currency')
-                row_five = {
-                    "account": acc_round_company,  # Cuenta a que se va a utilizar
-                    "cost_center": self.cost_center,  # Otra cuenta que revisa si esta dentro del presupuesto
-                    "credit_in_account_currency": 0,  #Valor del monto a acreditar
-                    "exchange_rate": 1,  # Tipo de cambio
-                    "account_currency": acc_round_company_currency,  # Moneda de la cuenta
-                    # "credit_in_account_currency": abs(round(centavos, 2)),  # se usa absoluto si a en credit
-                }
-
-                # Validamos si el cuadre va en debit o credit
-                if centavos>0:
-                    row_five.update({
-                        "credit_in_account_currency": flt(centavos),
-                        "credit": flt(centavos),
-                    })
-                    self.rows_journal_entry.append(row_five)
-
-                elif centavos<0:
-                    row_five.update({
-                        "debit_in_account_currency": flt(abs(centavos)),
-                        "debit": flt(abs(centavos)),
-                    })
-                    self.rows_journal_entry.append(row_five)
-
-
-                # with open('centavos.txt', 'w') as f:
-                #     f.write(str(abs(centavos)))
-
-        except:
-            return False, str(frappe.get_traceback())
-
-        else:
-            return True, 'OK'
-
-    def apply_iva_retencion_scenario(self):
-        """
-        Aplica los calculos necesarios para las filas que conformaran la poliza contable,
-        para una factura con retencion IVA
-
-        NOTA IMPORTANTE: LOS CALCULOS APLICADOS AQUI APLICAN PARA GUATEMALA, Y TOMANDO
-        EN CUENTA QUE LAS CUENTAS QUE REGISTRAN LOS MONTOS ES EN QUETZALES :)
-
-        Returns:
-            tuple: Boolean, descripcion operacion
-        """
-        try:
-            # -------------------------------------------------------------------------------------------------------------------------
-            # FILA 1: El monto acordado con supplier
-            # obtenemos la moneda de la cuenta por pagar
-            curr_row_a = frappe.db.get_value("Account", {"name": self.debit_to}, "account_currency")
-
-            # CALCULOS APLICABLES PARA IMPUESTOS GUATEMALA
-            # Si la moneda de la cuenta es GTQ usamos 1, si es USD usamos el tipo cambio
-            exch_rate_row = 1 if (curr_row_a == "GTQ") else self.curr_exch
-
-            row_one = {
-                "account": self.debit_to,  # Cuenta por pagar
-                "cost_center": self.cost_center,  # Otra cuenta que revisa si esta dentro del presupuesto
-                "credit_in_account_currency": round(amount_converter(self.grand_total, self.curr_exch,
-                                                                     from_currency=self.currency,
-                                                                     to_currency=curr_row_a), self.decimals_ope),  # convierte el monto a la moneda de la cuenta
-                "debit_in_account_currency": 0,
-                "exchange_rate": exch_rate_row,  # Tipo de cambio
-                "account_currency": curr_row_a,  # Moneda de la cuenta
-                "party_type": "Customer",  # Tipo de tercero: Proveedor, Cliente, Estudiante, Accionista, Etc. SE USARA CUSTOMER UA QUE VIENE DE SALES INVOICE
-                "party": self.customer,
-                "reference_name": self.name_inv,  # Referencia dada por sistema
-                "reference_type": "Sales Invoice"
-            }
-            self.rows_journal_entry.append(row_one)
-
-
-
-            # -------------------------------------------------------------------------------------------------------------------------
-            # FILA 2: MONTO QUE EN REALIDAD SE cobrara, GRAND TOTAL MENOS IVA
-            curr_row_b = frappe.db.get_value("Account", {"name": self.debit_in_acc_currency},
-                                             "account_currency")
-
-            # Validacion que tipo de cambio usar, segun moneda de la cuenta
-            exch_rate_row_b = 1 if (curr_row_b == "GTQ") else self.curr_exch
-
-            # VALIDACION GRAND TOTAL DE FACTURA
-            # Para una correcta validacion usamos el grand total en la moneda de company "GTQ"
-            grand_total_gtq = self.grand_total_currency_company
-
-            # Obtenemos el monto sin IVA del grand total moneda de company "GTQ"
-            GRAND_TOTAL_NO_IVA = round(grand_total_gtq/(self.vat_rate + 1), self.decimals_ope)
-
-            # Obtenemos el iva a retener GTQ
-            self.IVA_OPE = round((GRAND_TOTAL_NO_IVA * self.vat_rate), self.decimals_ope)
-
-            # El monto a pagar, restando el IVA a retener, e ISR a retener
-            amt_without_iva = (grand_total_gtq - (self.IVA_OPE))
-
-            # Se vuelve a validar la conversion a la moneda de la cuenta en caso aplique
-            calc_row_two = round(amount_converter(amt_without_iva, self.curr_exch,
-                                                  from_currency='GTQ', to_currency=curr_row_b), self.decimals_ope)
-
-            row_two = {
-                "account": self.debit_in_acc_currency,  #Cuenta a que se va a utilizar
-                "cost_center": self.cost_center,  # Otra cuenta que revisa si esta dentro del presupuesto
-                "credit_in_account_currency": 0,  #Valor del monto a acreditar
-                "exchange_rate": exch_rate_row_b,  # Tipo de cambio
-                "account_currency": curr_row_b,  # Moneda de la cuenta
-                "debit_in_account_currency": calc_row_two,
-            }
-            self.rows_journal_entry.append(row_two)
-
-
-
-            # -------------------------------------------------------------------------------------------------------------------------
-            # FILA 3: IVA a retener
-            # moneda de la cuenta
-            curr_row_c = frappe.db.get_value("Account", {"name": self.iva_account_payable}, "account_currency")
-            # Si la moneda de la cuenta es usd usara el tipo cambio de la factura
-            # resultado = valor_si if condicion else valor_no
-            exch_rate_row_c = 1 if (curr_row_c == "GTQ") else self.curr_exch
-            iva_curr_acc = amount_converter(self.IVA_OPE, self.curr_exch, from_currency="GTQ", to_currency=curr_row_c)
-
-            row_three = {
-                "account": self.iva_account_payable,  #Cuenta a que se va a utilizar
-                "cost_center": self.cost_center,  # Otra cuenta que revisa si esta dentro del presupuesto
-                "credit_in_account_currency": 0,  #Valor del monto a acreditar
-                "exchange_rate": exch_rate_row_c,  # Tipo de cambio
-                "account_currency": curr_row_c,  # Moneda de la cuenta
-                "debit_in_account_currency": round(iva_curr_acc, self.decimals_ope),  #Valor del monto a debitar
-            }
-            self.rows_journal_entry.append(row_three)
-
-
-            # -------------------------------------------------------------------------------------------------------------------------
-            # OJO NOTA: ESTO APLICA SOLO SI LA CUENTA REDONDEO ES EN GTQ
-            # FILA 4: VALIDACION SI ES NECESARIO AGREGAR UNA FILA PARA CUADRE DE CENTAVOS
-            # convierte de GTQ -> USD, y luego de USD -> GTQ, para obtener correctamente todos
-            # los decimales, para hacer aproximacion
-            INT_GTQ = flt(amount_converter(flt(amount_converter(amt_without_iva, self.curr_exch,
-                            from_currency='GTQ', to_currency=self.currency), self.decimals_ope), self.curr_exch,
-                            from_currency=self.currency, to_currency='GTQ'), self.decimals_ope)
-
-            total_debit = float(INT_GTQ + flt(self.IVA_OPE, self.decimals_ope))  # LO QUE ME PAGAN
-            total_credit = float(grand_total_gtq)  # LO QUE ME DEBEN
-
-
-            # El monto que meta que quiero obtener
-            goal = total_credit
-            x0 = 3  # estimacion
-
-            def fun(x):  # con la evaluacion encontramos la incognita x que son los centavos para cuadrar
-                amt_ok = total_debit - x
-                return amt_ok
-
-            if total_debit != total_credit:
-
-                centavos = GoalSeek(fun ,goal, x0)
-
-                # centavos = round(total_debit - total_credit, 2)  # otra forma es hacer resta y el resultado son los centavos
-                acc_round_company = frappe.db.get_value('Company', {'name': self.company}, 'write_off_account')
-                acc_round_company_currency = frappe.db.get_value('Account', {'name': acc_round_company}, 'account_currency')
-                row_four = {
-                    "account": acc_round_company,  # Cuenta a que se va a utilizar
-                    "cost_center": self.cost_center,  # Otra cuenta que revisa si esta dentro del presupuesto
-                    "credit_in_account_currency": 0,  #Valor del monto a acreditar
-                    "exchange_rate": 1,  # Tipo de cambio
-                    "account_currency": acc_round_company_currency,  # Moneda de la cuenta
-                    # "credit_in_account_currency": abs(round(centavos, 2)),  # se usa absoluto si a en credit
-                }
-
-                # Validamos si el cuadre va en debit o credit
-                if centavos>0:
-                    row_four.update({
-                        "credit_in_account_currency": flt(centavos),
-                        "credit": flt(centavos),
-                    })
-                    self.rows_journal_entry.append(row_four)
-
-                elif centavos<0:
-                    row_four.update({
-                        "debit_in_account_currency": flt(abs(centavos)),
-                        "debit": flt(abs(centavos)),
-                    })
-                    self.rows_journal_entry.append(row_four)
-
-                # with open('centavos.txt', 'w') as f:
-                #     f.write(str(centavos))
-
-            # Para evitar problemas con las rentenciones asignamos 0 a ISR
-            self.ISR_PAYABLE_GTQ = 0
-
-
-        except:
-            return False, str(frappe.get_traceback())
-
-        else:
-            return True, 'OK'
+            journal.insert(ignore_permissions=True)
+        except Exception:
+            return False, _("Could not create the Journal Entry: {0}").format(frappe.get_traceback())
+
+        tax_id = frappe.db.get_value("Customer", self.customer, "tax_id") or ""
+        for kind, amount in (("ISR", self.ISR_PAYABLE_GTQ), ("IVA", self.IVA_OPE)):
+            if amount:
+                register_withholding({
+                    "retention_type": kind,
+                    "party_type": "Customer",
+                    "party": self.customer,
+                    "company": self.company,
+                    "tax_id": tax_id,
+                    "sales_invoice": self.name_inv,
+                    "journal_entry": journal.name,
+                    "invoice_date": self.posting_date,
+                    "grand_total": self.grand_total,
+                    "currency": self.currency,
+                    "retention_amount": amount,
+                })
+        return True, journal.name
+
+    def _needs_multicurrency(self):
+        company_currency = frappe.get_cached_value("Company", self.company, "default_currency")
+        return any(r["account_currency"] != company_currency for r in self.rows_journal_entry)
 
 
 def register_withholding(data_ret):
+    """Record a retention (one row per ISR / IVA) so its constancia can be tracked."""
     try:
-        new_record = frappe.new_doc('Tax Retention Guatemala')
-        new_record.date = str(date.today())
-        new_record.retention_type = data_ret.get('retention_type')
-        new_record.party_type = data_ret.get('daparty_typete')
-        new_record.company = data_ret.get('company')
-        new_record.tax_id = data_ret.get('tax_id')
-        new_record.sales_invoice = data_ret.get('sales_invoice')
-        new_record.invoice_date = data_ret.get('invoice_date')
-        new_record.grand_total = data_ret.get('grand_total')
-        new_record.currency = data_ret.get('currency')
-
-        new_record.save()
-
-    except:
-        pass
-        # return False, f'Ocurrio un problema al tratar de registrar la poliza contable: {frappe.get_traceback()}'
-    else:
-        return True, 'OK'
+        record = frappe.new_doc("Tax Retention Guatemala")
+        record.date = data_ret.get("date") or str(date.today())
+        for field in ("retention_type", "party_type", "party", "company", "tax_id", "sales_invoice",
+                      "purchase_invoice", "journal_entry", "invoice_date", "grand_total", "currency",
+                      "retention_amount", "retention_confirmation"):
+            if data_ret.get(field) is not None:
+                record.set(field, data_ret.get(field))
+        record.insert(ignore_permissions=True)
+    except Exception:
+        frappe.log_error(title="Tax Retention Guatemala", message=frappe.get_traceback())
+        return False, _("Could not register the retention")
+    return True, record.name

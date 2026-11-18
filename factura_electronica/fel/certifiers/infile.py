@@ -16,6 +16,8 @@ import json
 import frappe
 import requests
 
+TIMEOUT = 60  # seconds; no timeout let a hung certifier block the worker
+
 from factura_electronica.fel.certifiers.base import CertifierAdapter
 
 INFILE_NIT = "12521337"
@@ -87,4 +89,8 @@ class InfileAdapter(CertifierAdapter):
             )
 
     def post_json(self, url, payload, headers):
-        return requests.post(url, data=json.dumps(payload), headers=headers)
+        response = requests.post(url, data=json.dumps(payload), headers=headers, timeout=TIMEOUT)
+        if response.status_code >= 500:
+            # The certifier is down: lets fel.contingency queue the document.
+            raise requests.ConnectionError("INFILE HTTP {0} Service Unavailable".format(response.status_code))
+        return response

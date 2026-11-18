@@ -172,66 +172,90 @@ frappe.ui.form.on("Item", {
   },
 });
 
-// Validador NIT para customer
-// Descripcion de Nombre legal
+// Tax ID is the one NIT input on Customer and Supplier; the FEL copy (nit_face_customer /
+// facelec_nit_proveedor) follows it and stays hidden. Copying only when the copy differs
+// keeps a freshly opened form from showing "Not Saved".
+function fel_sync_nit(frm, copy_field) {
+  const value = frm.doc.tax_id || "";
+  if ((frm.doc[copy_field] || "") !== value) frm.set_value(copy_field, value);
+}
+
+function fel_party_setup(frm, copy_field) {
+  frm.set_df_property("tax_id", "reqd", 1);
+  frm.set_df_property(copy_field, "reqd", 0);
+  frm.set_df_property(copy_field, "hidden", 1);
+  if (!frm.doc.tax_id && frm.doc[copy_field]) {
+    frm.doc.tax_id = frm.doc[copy_field]; // older records: adopt without dirtying
+  }
+}
+
+/** Offer the name SAT has for the NIT / CUI (INFILE receiver service; not in Demo mode). */
+function fel_sat_name_hint(frm, name_field) {
+  const tax_id = (frm.doc.tax_id || "").trim();
+  if (!tax_id || ["CF", "C/F"].includes(tax_id.toUpperCase())) return;
+  frappe
+    .call({
+      method: "factura_electronica.buscar_nit.lookup_receiver",
+      args: { tax_id: tax_id },
+    })
+    .then(({ message }) => {
+      if (!message || !message.name || message.name === frm.doc[name_field]) return;
+      const esc = frappe.utils.escape_html;
+      frm.dashboard.set_headline_alert(
+        __("Nombre registrado en SAT para {0}: {1}", [esc(tax_id), "<b>" + esc(message.name) + "</b>"]) +
+          ` <a href="#" role="button" class="fel-use-sat-name">${__("Usar este nombre")}</a>`,
+        "blue"
+      );
+      $(".fel-use-sat-name")
+        .off("click")
+        .on("click", (event) => {
+          event.preventDefault();
+          frm.set_value(name_field, message.name);
+          frm.dashboard.clear_headline();
+        });
+    });
+}
+
 frappe.ui.form.on("Customer", {
   setup: function (frm) {
-    frm.set_df_property("tax_id", "reqd", 1);
-    frm.set_value("tax_id", frm.doc.nit_face_customer);
-    frm.set_df_property("nit_face_customer", "reqd", 1);
-  },
-  nit_face_customer: function (frm) {
-    frm.set_value("tax_id", frm.doc.nit_face_customer);
-    valNit(frm.doc.nit_face_customer, frm.doc.name, frm);
+    fel_party_setup(frm, "nit_face_customer");
   },
   tax_id: function (frm) {
-    frm.set_value("nit_face_customer", frm.doc.tax_id);
-    // valNit(frm.doc.tax_id, frm.doc.name, frm);
+    fel_sync_nit(frm, "nit_face_customer");
+    fel_sat_name_hint(frm, "customer_name");
   },
   refresh: function (frm) {
-    var cust_name_desc = __(
-      "Legal Name, for tax, government or contract use. For Example: Apple, Inc. Amazon.com, Inc., The Home Depot, Inc."
+    frm.set_df_property(
+      "customer_name",
+      "description",
+      __("Nombre legal, como está registrado en SAT.")
     );
-    cur_frm.set_df_property("customer_name", "description", cust_name_desc);
-    frm.refresh_field("customer_name");
   },
 });
 
-// Validador NIT para Supplier
-// descripcion de nombre legal
 frappe.ui.form.on("Supplier", {
   setup: function (frm) {
-    frm.set_df_property("tax_id", "reqd", 1);
-    frm.set_value("tax_id", frm.doc.facelec_nit_proveedor);
-    frm.set_df_property("facelec_nit_proveedor", "reqd", 1);
-  },
-  facelec_nit_proveedor: function (frm) {
-    frm.set_value("tax_id", frm.doc.facelec_nit_proveedor);
-    valNit(frm.doc.facelec_nit_proveedor, frm.doc.name, frm);
+    fel_party_setup(frm, "facelec_nit_proveedor");
   },
   tax_id: function (frm) {
-    frm.set_value("facelec_nit_proveedor", frm.doc.tax_id);
-    // valNit(frm.doc.tax_id, frm.doc.name, frm);
+    fel_sync_nit(frm, "facelec_nit_proveedor");
+    fel_sat_name_hint(frm, "supplier_name");
   },
   refresh: function (frm) {
-    var supp_name_desc = __(
-      "Legal Name, for tax, government or contract use. For Example: Apple, Inc. Amazon.com, Inc., The Home Depot, Inc."
+    frm.set_df_property(
+      "supplier_name",
+      "description",
+      __("Nombre legal, como está registrado en SAT.")
     );
-    cur_frm.set_df_property("supplier_name", "description", supp_name_desc);
-    frm.refresh_field("supplier_name");
   },
 });
 
 frappe.ui.form.on("Company", {
-  nit_face_company: function (frm) {
-    frm.set_value("tax_id", frm.doc.nit_face_company);
-    valNit(frm.doc.nit_face_company, frm.doc.name, frm);
-  },
   tax_id: function (frm) {
-    frm.set_value("nit_face_company", frm.doc.tax_id);
-    // valNit(frm.doc.tax_id, frm.doc.name, frm);
+    fel_sync_nit(frm, "nit_face_company");
   },
   setup: function (frm) {
+    frm.set_df_property("nit_face_company", "hidden", 1);
     frm.set_query("isr_account_payable", "tax_witholding_ranges", () => {
       return {
         filters: {

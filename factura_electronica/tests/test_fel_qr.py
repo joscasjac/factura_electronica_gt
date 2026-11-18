@@ -44,7 +44,8 @@ import frappe  # noqa: E402
 from factura_electronica.fel import qrcode as fel_qr  # noqa: E402
 
 _IMG = re.compile(
-    r'^<img src="data:image/svg\+xml;base64,([A-Za-z0-9+/=]+)" alt="FEL QR" width="120" height="120">$'
+    r'^<img src="data:image/svg\+xml;base64,([A-Za-z0-9+/=]+)" alt="FEL QR" width="120" height="120"'
+    r'(?: style="width:120px !important;height:120px !important")?>$'
 )
 _SAMPLE = "A1B2C3D4-E5F6-7890-ABCD-EF1234567890"
 _URL = (

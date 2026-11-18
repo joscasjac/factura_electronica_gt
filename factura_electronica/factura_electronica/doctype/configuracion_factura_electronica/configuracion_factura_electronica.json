@@ -14,6 +14,12 @@
   "descargar_pdf_factura_electronica",
   "company",
   "certificador",
+  "fel_mode_section",
+  "modo",
+  "certificar_al_validar",
+  "tipo_documento_automatico",
+  "anular_al_cancelar",
+  "fel_issuer_section",
   "certificador_predeterminado",
   "is_individual",
   "facelec_name_of_owner",
@@ -101,7 +107,7 @@
   {
    "fieldname": "url_descarga_pdf",
    "fieldtype": "Data",
-   "label": "URL descarga pdf",
+   "label": "URL para descargar el PDF",
    "reqd": 1
   },
   {
@@ -121,7 +127,7 @@
    "depends_on": "eval:(doc.regimen === 'GFACE')",
    "fieldname": "datos_proveedor_factura_electronica",
    "fieldtype": "Section Break",
-   "label": "DATOS PROVEEDOR FACTURA ELECTRONICA"
+   "label": "Datos del proveedor (GFACE)"
   },
   {
    "fieldname": "clave",
@@ -153,7 +159,7 @@
    "depends_on": "eval:doc.regimen === 'GFACE';",
    "fieldname": "configuracion_de_series",
    "fieldtype": "Section Break",
-   "label": "Configuracion de Series GFACE"
+   "label": "Series (GFACE)"
   },
   {
    "bold": 1,
@@ -166,7 +172,7 @@
    "depends_on": "eval:doc.regimen == \"GFACE\"",
    "fieldname": "datos_establecimiento",
    "fieldtype": "Section Break",
-   "label": "DATOS ESTABLECIMIENTO GFACE"
+   "label": "Datos del establecimiento (GFACE)"
   },
   {
    "description": "FEL/GFACE",
@@ -216,11 +222,11 @@
   },
   {
    "default": "0",
-   "description": "Indique si esta afecto al r\u00e9gimen decreto 29-89, si la caja est\u00e1 seleccionada, la respuesta es afirmativa.",
+   "description": "Indique si esta afecto al régimen decreto 29-89, si la caja está seleccionada, la respuesta es afirmativa.",
    "fieldname": "regimen_2989",
    "fieldtype": "Check",
    "hidden": 1,
-   "label": "\u00bfAfecto al regimen 2989?"
+   "label": "¿Afecto al regimen 2989?"
   },
   {
    "fieldname": "regimen_isr",
@@ -262,7 +268,7 @@
   {
    "fieldname": "regimen",
    "fieldtype": "Select",
-   "label": "Regimen",
+   "label": "Régimen",
    "options": "FEL",
    "read_only": 1,
    "reqd": 1
@@ -272,7 +278,7 @@
    "depends_on": "eval:doc.regimen === 'FEL';",
    "fieldname": "datos_fel_section",
    "fieldtype": "Section Break",
-   "label": "DATOS FEL"
+   "label": "Credenciales del certificador"
   },
   {
    "description": "FEL",
@@ -300,12 +306,12 @@
   {
    "fieldname": "configuracion_series_fel_section",
    "fieldtype": "Section Break",
-   "label": "Series Configuration For Sales Invoices"
+   "label": "Series de facturas de venta"
   },
   {
    "fieldname": "series_fel",
    "fieldtype": "Table",
-   "label": "Series FEL",
+   "label": "Series",
    "options": "Configuracion Series FEL"
   },
   {
@@ -326,7 +332,8 @@
    "fieldname": "es_anulacion",
    "fieldtype": "Data",
    "label": "Es Anulacion",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "description": "FEL",
@@ -334,27 +341,27 @@
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Tipo Frase",
-   "options": "\n1: Frase de retencio\u0301n del ISR\n2: Frase de retencio\u0301n del IVA\n3: Frase de no genera derecho a cre\u0301dito fiscal del IVA\n4: Frase de exento o no afecto al IVA"
+   "options": "\n1: Frase de retención del ISR\n2: Frase de retención del IVA\n3: Frase de no genera derecho a crédito fiscal del IVA\n4: Frase de exento o no afecto al IVA"
   },
   {
    "description": "<b>FEL:</b> Envia copia de factura electronica generada para el escenario <b>Cliente/Proveedor no provee su correo electronico</b>",
    "fieldname": "correo_copia",
    "fieldtype": "Data",
-   "label": "Correo Copia",
+   "label": "Correo para copia",
    "options": "Email"
   },
   {
    "default": "0",
    "fieldname": "lookup_receiver_name_on_submit",
    "fieldtype": "Check",
-   "label": "Look up receiver name at SAT on submit"
+   "label": "Buscar el nombre del receptor en SAT al validar"
   },
   {
    "collapsible": 1,
    "fieldname": "configuracion_correo_electronico_section",
    "fieldtype": "Section Break",
    "hidden": 1,
-   "label": "Configuracion Correo Electronico"
+   "label": "Correo electrónico"
   },
   {
    "fieldname": "asunto",
@@ -388,7 +395,7 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Compañía",
+   "label": "Empresa",
    "options": "Company",
    "reqd": 1
   },
@@ -405,18 +412,29 @@
   },
   {
    "allow_on_submit": 1,
+   "default": "Demo",
+   "description": "Demo: genera y valida el XML contra el esquema SAT sin enviarlo ni usar credenciales. Pruebas: credenciales de prueba del certificador. Producción: credenciales productivas; los documentos tienen validez ante la SAT.",
+   "fieldname": "modo",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Modo",
+   "options": "Demo\nPruebas\nProducción",
+   "reqd": 1
+  },
+  {
+   "allow_on_submit": 1,
    "default": "0",
    "description": "Los documentos nuevos de esta compañía usan esta configuración cuando hay más de un certificador activo. Debe haber exactamente una predeterminada por compañía.",
    "fieldname": "certificador_predeterminado",
    "fieldtype": "Check",
    "in_list_view": 1,
-   "label": "Certificador Predeterminado"
+   "label": "Certificador predeterminado"
   },
   {
-   "description": "FEL: De acuerdo al R\u00e9gimen que\ntenga registrado el contribuyente, se refiere a que puede ser General/Exento o Peque\u00f1o Contribuyente.",
+   "description": "FEL: De acuerdo al Régimen que\ntenga registrado el contribuyente, se refiere a que puede ser General/Exento o Pequeño Contribuyente.",
    "fieldname": "afiliacion_iva",
    "fieldtype": "Select",
-   "label": "Afiliacion IVA",
+   "label": "Afiliación IVA",
    "options": "\nGEN\nEXE\nPEQ"
   },
   {
@@ -429,12 +447,12 @@
   {
    "fieldname": "series_configuration_for_purchase_invoices_section",
    "fieldtype": "Section Break",
-   "label": "Series Configuration For Purchase Invoices"
+   "label": "Series de facturas de compra"
   },
   {
    "fieldname": "purchase_invoice_series",
    "fieldtype": "Table",
-   "label": "Purchase Invoice Series",
+   "label": "Series",
    "options": "Serial Configuration For Purchase Invoice"
   },
   {
@@ -450,29 +468,31 @@
    "default": "0",
    "fieldname": "usar_datos_prueba",
    "fieldtype": "Check",
-   "label": "Usar datos prueba"
+   "label": "Usar datos de prueba"
   },
   {
    "depends_on": "eval:doc.usar_datos_prueba",
    "fieldname": "nombre_empresa_prueba",
    "fieldtype": "Data",
-   "label": "Nombre empresa prueba"
+   "label": "Nombre de la empresa de prueba"
   },
-  {"description": "Nombre del Emisor - Nombre requerido INFILE",
-    "fieldname": "nombre_Emisor",
-    "fieldtype": "Data",
-    "label": "Nombre emisor"
-   },
-   {"description": "Nombre Comercial",
+  {
+   "description": "Nombre del Emisor - Nombre requerido INFILE",
+   "fieldname": "nombre_Emisor",
+   "fieldtype": "Data",
+   "label": "Nombre del emisor"
+  },
+  {
+   "description": "Nombre Comercial",
    "fieldname": "nombre_Comercial",
    "fieldtype": "Data",
-   "label": "Nombre Comercial"
+   "label": "Nombre comercial"
   },
   {
    "description": "FEL: URL para anular documentos",
    "fieldname": "url_de_anulacion",
    "fieldtype": "Data",
-   "label": "URL de Anulacion"
+   "label": "URL de anulación"
   },
   {
    "fieldname": "tipo_frase_factura_especial",
@@ -492,7 +512,7 @@
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Tipo Frase Factura Exportacion",
-   "options": "\n1: Frase de retencio\u0301n del ISR\n2: Frase de retencio\u0301n del IVA\n3: Frase de no genera derecho a cre\u0301dito fiscal del IVA\n4: Frase de exento o no afecto al IVA"
+   "options": "\n1: Frase de retención del ISR\n2: Frase de retención del IVA\n3: Frase de no genera derecho a crédito fiscal del IVA\n4: Frase de exento o no afecto al IVA"
   },
   {
    "fieldname": "codigo_escenario_factura_exportacion",
@@ -505,7 +525,7 @@
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Tipo Frase Factura Exenta",
-   "options": "\n1: Frase de retencio\u0301n del ISR\n2: Frase de retencio\u0301n del IVA\n3: Frase de no genera derecho a cre\u0301dito fiscal del IVA\n4: Frase de exento o no afecto al IVA"
+   "options": "\n1: Frase de retención del ISR\n2: Frase de retención del IVA\n3: Frase de no genera derecho a crédito fiscal del IVA\n4: Frase de exento o no afecto al IVA"
   },
   {
    "fieldname": "codigo_escenario_factura_exenta",
@@ -516,38 +536,38 @@
   {
    "fieldname": "otras_configuraciones_section",
    "fieldtype": "Section Break",
-   "label": "Other Configurations"
+   "label": "Otras opciones"
   },
   {
-   "description": "Seleccione el campo que desee mostrar en el campo descripci\u00f3n de producto para el documento electr\u00f3nico a generar.",
+   "description": "Seleccione el campo que desee mostrar en el campo descripción de producto para el documento electrónico a generar.",
    "fieldname": "descripcion_item",
    "fieldtype": "Select",
-   "label": "Descripcion Item",
+   "label": "Descripción del ítem",
    "options": "Nombre de Item\nDescripcion de Item"
   },
   {
-   "description": "<b>A continuaci\u00f3n los generadores disponibles en Factura Electr\u00f3nica App, seleccione los que desee para esta instancia: </b>",
+   "description": "<b>A continuación los generadores disponibles en Factura Electrónica App, seleccione los que desee para esta instancia: </b>",
    "fieldname": "documentos_electronicos_section",
    "fieldtype": "Section Break",
-   "label": "Documentos Electronicos"
+   "label": "Documentos electrónicos habilitados"
   },
   {
    "default": "0",
    "fieldname": "factura_venta_fel",
    "fieldtype": "Check",
-   "label": "Factura Venta FEL"
+   "label": "Factura"
   },
   {
    "default": "0",
    "fieldname": "nota_credito_fel",
    "fieldtype": "Check",
-   "label": "Nota Credito FEL"
+   "label": "Nota de crédito"
   },
   {
    "default": "0",
    "fieldname": "anulador_de_facturas_ventas_fel",
    "fieldtype": "Check",
-   "label": "Anulador de documentos FEL"
+   "label": "Anulación de documentos"
   },
   {
    "fieldname": "column_break_13",
@@ -557,59 +577,93 @@
    "default": "0",
    "fieldname": "factura_exportacion_fel",
    "fieldtype": "Check",
-   "label": "Factura Exportacion FEL"
+   "label": "Factura de exportación"
   },
   {
    "default": "0",
    "fieldname": "factura_especial_fel",
    "fieldtype": "Check",
-   "label": "Factura Especial FEL"
+   "label": "Factura especial"
   },
   {
    "default": "0",
    "description": "Disponible para Bienes y Servicios (No Combustibles)",
    "fieldname": "factura_electronica_fel_pos",
    "fieldtype": "Check",
-   "label": "Factura Electronica FEL (POS)"
+   "label": "Factura desde punto de venta (POS)"
   },
   {
-   "description": "Seleccione el valor de fecha/tiempo que desee mostrar en los documentos electr\u00f3nicos a generar.\n",
+   "description": "Seleccione el valor de fecha/tiempo que desee mostrar en los documentos electrónicos a generar.\n",
    "fieldname": "fecha_y_tiempo_documento_electronica",
    "fieldtype": "Select",
-   "label": "Fecha y tiempo documento electronica",
+   "label": "Fecha y hora del documento electrónico",
    "options": "Fecha y tiempo de peticion a INFILE\nFecha y tiempo creacion documento"
   },
   {
    "default": "0",
    "fieldname": "nota_de_debito_electronica",
    "fieldtype": "Check",
-   "label": "Nota de Debito FEL"
+   "label": "Nota de débito"
   },
   {
    "default": "0",
    "fieldname": "factura_cambiaria_fel",
    "fieldtype": "Check",
-   "label": "Factura Cambiaria FEL"
+   "label": "Factura cambiaria"
   },
   {
    "depends_on": "eval:doc.is_individual == 1",
    "fetch_from": "company.facelec_name_of_owner",
    "fieldname": "facelec_name_of_owner",
    "fieldtype": "Data",
-   "label": "Name Of Owner",
+   "label": "Nombre del propietario",
    "read_only": 1
   },
   {
    "default": "0",
    "fieldname": "is_individual",
    "fieldtype": "Check",
-   "label": "La compania es de propietario individual?"
+   "label": "¿La empresa es de un propietario individual?"
+  },
+  {
+   "fieldname": "certificar_al_validar",
+   "fieldtype": "Check",
+   "label": "Certificar al validar",
+   "default": "1",
+   "allow_on_submit": 1,
+   "description": "Al validar (Submit) una factura con serie FEL se certifica en el mismo paso. Desmárquelo si su proceso revisa o certifica por lotes después de validar."
+  },
+  {
+   "fieldname": "tipo_documento_automatico",
+   "fieldtype": "Check",
+   "label": "Elegir tipo de documento automáticamente",
+   "default": "1",
+   "allow_on_submit": 1,
+   "description": "En facturas nuevas: ventas al crédito usan la serie de Factura Cambiaria, clientes del exterior la de Exportación y, si la empresa es Pequeño Contribuyente, FPEQ / FCAP."
+  },
+  {
+   "fieldname": "anular_al_cancelar",
+   "fieldtype": "Check",
+   "label": "Anular en SAT al cancelar",
+   "default": "1",
+   "allow_on_submit": 1,
+   "description": "Al cancelar una factura certificada se pide el motivo y se anula en SAT en el mismo paso. Desmárquelo para anular por separado con la acción Anular en SAT."
+  },
+  {
+   "fieldname": "fel_mode_section",
+   "fieldtype": "Section Break",
+   "label": "Modo y automatización"
+  },
+  {
+   "fieldname": "fel_issuer_section",
+   "fieldtype": "Section Break",
+   "label": "Emisor"
   }
  ],
  "icon": "octicon octicon-gear",
  "is_submittable": 1,
  "links": [],
- "modified": "2026-11-15 22:15:00.000000",
+ "modified": "2026-11-18 18:30:00.000000",
  "modified_by": "Administrator",
  "module": "Factura Electronica",
  "name": "Configuracion Factura Electronica",
